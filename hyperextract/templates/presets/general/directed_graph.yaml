@@ -1,0 +1,170 @@
+language: [zh, en]
+
+name: directed_graph
+type: hypergraph
+tags: [custom, directed, hypergraph, temporal]
+
+description:
+  zh: '有向超图抽取模板，支持角色标注，用于语义复原。'
+  en: 'Directed hypergraph extraction with role annotation for semantic reconstruction.'
+
+output:
+  description:
+    zh: '提取出的超图结构，包含节点和超边（带角色与类型）。'
+    en: 'Extracted hypergraph with nodes and hyperedges (with roles and types).'
+  entities:
+    description:
+      zh: '文本中可识别的实体，如系统、节点、集群、概念等。'
+      en: 'Identifiable entities from text, such as systems, nodes, clusters, concepts, etc.'
+    fields:
+      - name: name
+        type: str
+        description:
+          zh: '实体名称'
+          en: 'Entity name'
+      - name: type
+        type: str
+        description:
+          zh: '实体类型，如：集群、节点、概念、状态、指标、事件等'
+          en: 'Entity type, e.g., cluster, node, concept, status, metric, event'
+      - name: description
+        type: str
+        description:
+          zh: '对实体的简要说明'
+          en: 'Brief description of the entity'
+        required: false
+  relations:
+    description:
+      zh: '实体之间的有向超边，连接多个节点，并标注节点角色和超边类型。'
+      en: 'Directed hyperedges connecting multiple nodes, with node roles and hyperedge type.'
+    fields:
+      - name: action
+        type: str
+        description:
+          zh: '该超边的核心动作/动词，尽量使用原文中的动词'
+          en: 'Core action/verb of this hyperedge, preferably using the original verb from text'
+        required: false
+      - name: name
+        type: str
+        description:
+          zh: '超边名称（简要概括）'
+          en: 'Hyperedge name (brief summary)'
+      - name: type
+        type: str
+        description:
+          zh: '超边类型（如：使令事件、购买事件、伴随事件、因果事件、领属关系）'
+          en: 'Hyperedge type (e.g., causation, purchase, accompaniment, cause-effect, possession)'
+      - name: participants
+        type: list
+        description:
+          zh: '参与该超边的节点名称列表'
+          en: 'List of node names participating in this hyperedge'
+      - name: roles
+        type: list
+        description:
+          zh: '与 participants 一一对应的角色列表（如：施事、受事、使令者、被使令者、地点、工具、伴随者、时间）'
+          en: 'Roles corresponding to participants (e.g., agent, patient, causer, causee, location, tool, companion, time)'
+      - name: time
+        type: str
+        description:
+          zh: '关系发生的时间（ISO格式或自然语言）'
+          en: 'Time of the relation (ISO format or natural language)'
+        required: false
+      - name: description
+        type: str
+        description:
+          zh: '对该超边的简要说明'
+          en: 'Brief description of the hyperedge'
+        required: false
+      - name: confidence
+        type: float
+        description:
+          zh: '该超边抽取的置信度（0~1），由LLM自评'
+          en: 'Confidence score of this hyperedge extraction (0~1)'
+        required: false
+        default: 1.0
+
+
+guideline:
+  target:
+    zh: |
+      你是一位超图关系抽取专家。请从文本中提取超图结构，包括节点和超边，并为每个超边标注：
+        1. 超边类型（如使令事件、购买事件、伴随事件、因果事件、领属关系等）
+        2. 每个节点的角色（如施事、受事、使令者、被使令者、地点、工具、伴随者、时间）
+      请遵循汉德12范畴句式进行拆解。
+    en: |
+      You are a hypergraph relation extraction expert. Extract hypergraph structure with nodes and hyperedges. For each hyperedge, annotate:
+        1. Hyperedge type (e.g., causation, purchase, accompaniment, cause-effect, possession)
+        2. Role of each node (e.g., agent, patient, causer, causee, location, tool, companion, time)
+      Follow the "Han-De 12 Category Sentence Patterns" for decomposition.
+
+  rules_for_entities:
+    zh:
+      - '提取文本中出现的所有实体，如系统、节点、集群、概念、状态、指标等。'
+      - '同一实体在全文中保持命名一致。'
+      - '不要提取纯代词或泛称。'
+    en:
+      - 'Extract all entities from the text, such as systems, nodes, clusters, concepts, statuses, metrics, etc.'
+      - 'Keep naming consistent across the entire text.'
+      - 'Do not extract pure pronouns or general references.'
+
+
+  rules_for_relations:
+    zh:
+      - '**第一步：识别超边类型（type）**'
+      - '超边类型从以下中选择：CORE_EVENT（核心事件）、MODIFIER（修饰）、CAUSAL（因果）、ATTR_LINK（定语绑定）、TEMPORAL（时间锚定）、STATE_LINK（状态绑定）。'
+      - '**CORE_EVENT**：主谓宾骨架，如"小明喂猫" → 小明(subj) 喂 橘猫(obj)'
+      - '**MODIFIER**：时间、地点等修饰，如"在公园" → 公园(loc)，挂到核心事件'
+      - '**CAUSAL**：因果关系，如"因为没吃饭" → 没吃饭(cause) → 饿(effect)'
+      - '**ATTR_LINK**：定语绑定，如"那只橘猫" → 那只(attr) 橘猫(obj)'
+      - '**TEMPORAL**：纯时间锚定，如"昨天傍晚" → 昨天傍晚(time)'
+      - '**STATE_LINK**：状态绑定，如"饥肠辘辘的小明" → 饥肠辘辘(state) 小明(subj)'
+      - ''
+      - '**第二步：标注节点角色（role）**'
+      - '角色从以下中选择：subj（主语/施事）、obj（宾语/受事）、loc（地点）、time（时间）、attr（定语修饰）、state（状态修饰）、cause（原因）、manner（方式）、beneficiary（受益方）。'
+      - '**示例角色映射（旧角色 → 新角色）：** 施事→subj，受事→obj，使令者→subj，被使令者→obj，地点→loc，时间→time，工具→manner，伴随者→manner，属性/主题/值→attr，原因→cause。'
+      - ''
+      - '**第三步：语序规则**'
+      - '中文通常语序：时间 + 原因 + 地点 + 主语 + 动作 + 宾语 + 定语（修饰名词前）。'
+      - '还原时按三元组入库顺序拼接子句；子句内按 role 填充位置（如 subj 在动词前，obj 在动词后）。'
+      - ''
+      - '**其他规则：**'
+      - '每个超边必须包含 participants 和 roles，两者长度必须一致。'
+      - '对于兼语、被动、把字等复杂句式，拆解为多个超边。'
+      - '尽量抽取文本中明确表达的关系，不要凭空捏造。'
+      - '**谓词建议：**'
+      - '  1. 优先使用中文动词，如 contains → 包含，related_to → 关联。'
+      - '  2. 优先使用简洁词语，如 "should_redirect_traffic_to" → "重定向"。'
+      - '  3. 同一语义尽量使用相同谓词。'
+      - '  4. 如果原文动词更贴切，保留原文动词。'
+    en:
+      - 'Each hyperedge must have participants and roles of the same length.'
+      - '**Roles: subj, obj, loc, time, attr, state, cause, manner, beneficiary.**'
+      - '**Types: CORE_EVENT, MODIFIER, CAUSAL, ATTR_LINK, TEMPORAL, STATE_LINK.**'
+      - 'Order: time + cause + location + subject + action + object.'
+
+  rules_for_time:
+    zh:
+      - '当前观察日期：{observation_time}'
+      - 'time 是可选字段；仅在文本明确提供时间，或可依据相对时间可靠换算时填写。'
+      - '相对时间以 observation_time 为基准解析。'
+      - '若文本给出明确年份，则写为 YYYY；若给出完整日期，则写为 YYYY-MM-DD；保留可确定的最细粒度。'
+      - '无法可靠确定时间时留空。'
+    en:
+      - 'Current observation date: {observation_time}'
+      - 'time is optional; fill in only when the text explicitly provides time or when relative time can be reliably converted.'
+      - 'Parse relative time based on observation_time.'
+      - 'Write years as YYYY; write full dates as YYYY-MM-DD; preserve the finest granularity determinable from the text.'
+      - 'Leave empty when time cannot be reliably determined.'
+
+identifiers:
+  entity_id: name
+  relation_id: '{name}|{type}'
+  relation_members: participants
+
+options:
+  extraction_mode: one_stage
+
+display:
+  entity_label: '{name} ({type})'
+  relation_label: '{name} ({type})'

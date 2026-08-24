@@ -260,7 +260,7 @@ General-purpose templates applicable to any document type.
 | [base_spatial_graph](./presets/general/base_spatial_graph.yaml) | spatial_graph | General spatial graph (relations + location) |
 | [base_spatio_temporal_graph](./presets/general/base_spatio_temporal_graph.yaml) | spatio_temporal_graph | General spatio-temporal graph (relations + time + location) |
 
-**Domain-Specific Templates (5)**
+**Domain-Specific Templates (6)**
 
 | Template | Type | Purpose | Documents |
 |---------|------|---------|-----------|
@@ -268,6 +268,7 @@ General-purpose templates applicable to any document type.
 | [doc_structure](./presets/general/doc_structure.yaml) | graph | Extract document hierarchy and cross-references | Technical docs, papers, reports |
 | [biography_graph](./presets/general/biography_graph.yaml) | temporal_graph | Extract life events with timestamps | Biographies, memoirs, year timelines |
 | [concept_graph](./presets/general/concept_graph.yaml) | graph | Extract conceptual hierarchies and relations | Textbooks, encyclopedias, academic papers |
+| [directed_graph](./presets/general/directed_graph.yaml) | hypergraph | Directed hypergraph with role annotation (subj/obj/loc/time/attr/state/cause/manner) for semantic reconstruction | Incident reports, ops events, causal narratives (zh/en) |
 
 ---
 
