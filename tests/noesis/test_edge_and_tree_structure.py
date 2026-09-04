@@ -144,7 +144,7 @@ class TestClosureEdgeRules:
 
 
 class TestAtomTypeRoleCombinations:
-    """Section 5.3: predicates are P, agents/patients are E, modifiers either."""
+    """Predicates are P; E/G may fill entity-like roles; modifiers may use any type."""
 
     def test_predicate_atom_with_type_e_dropped(self):
         component = fact(
@@ -202,6 +202,40 @@ class TestAtomTypeRoleCombinations:
         )
 
         result = validate([component], "妈妈没带钱买了苹果")
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+
+    def test_geneme_patient_passes_as_constructed_concept(self):
+        component = fact(
+            atoms=[
+                atom(1, "系统", "E", "agent", 2),
+                atom(2, "识别", "P", "predicate", None),
+                atom(3, "生长周期", "G", "patient", 2),
+            ],
+            tree_=tree("识别", agent=[arg("系统")], patient=[arg("生长周期")]),
+        )
+
+        result = validate([component], "系统识别生长周期")
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+
+    def test_geneme_can_be_inherited_as_implied_nested_argument(self):
+        component = fact(
+            atoms=[
+                atom(1, "生长周期", "G", "patient", 2),
+                atom(2, "形成", "P", "predicate", None),
+                atom(3, "结束", "P", "predicate", 2),
+            ],
+            tree_=tree(
+                "形成",
+                patient=[arg("生长周期")],
+                nested=[tree("结束", patient=[arg("生长周期", implied=True)])],
+            ),
+        )
+
+        result = validate([component], "生长周期形成后结束")
 
         assert len(result.components) == 1
         assert result.alerts == []

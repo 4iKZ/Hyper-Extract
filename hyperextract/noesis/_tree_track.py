@@ -19,7 +19,7 @@ def _check_tree_structure(
     for atom in atoms:
         if atom.role == "modifier" and atom.target_occ is not None:
             modifiers_by_target.setdefault(atom.target_occ, []).append(atom.text)
-    entity_texts = {atom.text for atom in atoms if atom.type == "E"}
+    entity_texts = {atom.text for atom in atoms if atom.type in ("E", "G")}
     atom_texts = {atom.text for atom in atoms}
     subordinates = [
         atom for atom in atoms if atom.role == "predicate" and atom.pos != root.pos

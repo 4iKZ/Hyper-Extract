@@ -6,11 +6,11 @@ from collections import Counter
 from typing import Any
 
 from ._closure import (
-    _SemanticFailure,
     _check_closure,
     _check_edge_roles,
     _check_pos_sequence,
     _find_unique_root,
+    _SemanticFailure,
 )
 from ._rule_track import _check_rule_template
 from ._tree_track import _check_tree_structure
@@ -90,11 +90,11 @@ def _normalize_component(
 
 
 def _check_atom_type_role(atoms: list[NoesisAtom]) -> None:
-    """Predicates are P, agents/patients are E, modifiers either (section 5.3)."""
+    """Predicates are P; E/G fill entity roles; modifiers accept any stored type."""
     for index, atom in enumerate(atoms):
         valid = (
             (atom.role == "predicate" and atom.type == "P")
-            or (atom.role in ("agent", "patient") and atom.type == "E")
+            or (atom.role in ("agent", "patient") and atom.type in ("E", "G"))
             or atom.role == "modifier"
         )
         if not valid:

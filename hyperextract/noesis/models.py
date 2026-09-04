@@ -12,7 +12,7 @@ class NoesisAtom(BaseModel):
 
     pos: int = Field(ge=1)
     text: str = Field(min_length=1)
-    type: Literal["E", "P"]
+    type: Literal["E", "P", "G"]
     role: Literal["agent", "predicate", "patient", "modifier"]
     target_occ: int | None
     resolved: StrictBool | None
@@ -60,7 +60,7 @@ class RulePremise(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str
-    type: Literal["E", "P"]
+    type: Literal["E", "P", "G"]
     role: Literal["agent", "predicate", "patient", "modifier"]
 
 

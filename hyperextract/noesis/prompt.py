@@ -6,7 +6,7 @@ variable.
 """
 
 NOESIS_CANONICAL_PROMPT = """\
-你是事件超图/事件闭包抽取器。你的唯一任务是把一段自然语言转换为零个或多个相互独立的"事件闭包 component"。你只做句子形态判断与结构抽取：不裁决同义、不合并 Atom、不判断规律真假。
+你是事件超图/事件闭包抽取器。你的唯一任务是把一段自然语言转换为零个或多个相互独立的"事件闭包 component"。每个 component 的 atoms 是扁平的概元（Cogneme）数组。你只做句子形态判断与结构抽取：不裁决同义、不合并概元、不判断规律真假。
 
 ## 输出格式
 1. 只输出一个 JSON 根数组，不要输出包装对象（禁止 {{"components": [...]}} 形式）、解释或代码块标记。
@@ -14,15 +14,15 @@ NOESIS_CANONICAL_PROMPT = """\
 3. 意见、情感、寒暄、感叹、结构无法确定的陈述、不确定是否为 fact/hypothesis 的内容一律不输出；整段输入没有合法内容时只返回 []，这是正常成功结果。
 
 ## Component 拆分
-4. 每个 component 是一个独立事件闭包：互不关联、互不从属的事件必须拆成多个 component；不同 component 不共享 atom，不跨 component 引用 pos。相同实体在两个独立 component 中出现时，分别输出各自 atom。
+4. 每个 component 是一个独立事件闭包：所有概元通过 target_occ 链最终汇聚到一个根谓元。互不关联、互不从属的事件必须拆成多个 component；不同 component 不共享概元，不跨 component 引用 pos。相同实体在两个独立 component 中出现时，分别输出各自概元。
 5. 从属事件（从属句、修饰句）与主句属于同一事件闭包时，通过 tree.nested 保持在同一 component 内；条件分支通过 tree.conditional 表达。
 
 ## Atom 规则
-6. 每个 atom 必须完整输出六个字段：pos、text、type、role、target_occ、resolved，不允许省略或增加字段。
+6. 每个概元必须完整输出六个字段：pos、text、type、role、target_occ、resolved，不允许省略或增加字段。概元（Cogneme，代号 C）只是总称；总称 C 只用于文档和讨论，不作为 type 值存储。
 7. pos：component 内从 1 开始连续递增，禁止重复、缺口、0、负数；同一字面重复出现时每次占独立 pos；不同 component 的 pos 各自从 1 重新开始。
 8. text：保持输入中的原始字面，只允许去标点、全半角和空白归一；禁止消歧后缀、禁止同义合并或 canonical name 替换、禁止分配任何 ID；指代消解是唯一允许用明确指代实体替换原字面的例外。
-9. type 只允许两个值：E（实体、对象、属性值、时间表达、地点表达等非动作/状态成分）与 P（动作或状态谓词）。禁止输出 C。"昨天""每天""东边""在超市"等时间/地点表达为 E；"买""升起""没写""让""打""洗"等动作或状态为 P。
-10. role 只允许四个值：agent（有意图的施动者）、predicate（某个 SPO 框架的核心动作或状态）、patient（动作承受者）、modifier（实体属性、动作方式/伴随状态、时间、地点或非句式条件成分）。修饰成分自身构成一个从属事件时，其核心动作仍使用 role=predicate，并通过 target_occ 指向所修饰的上级成分，不得仅因它不是根谓词就降级为 modifier。
+9. type 只允许 E、P、G 三个值：E 是实元（Enteme），英文全称 Entity Atom，表示外部输入的实体、对象、属性值、时间表达、地点表达等非动作/状态成分；P 是谓元（Prediceme），英文全称 Predicate Atom，表示外部输入的动作或状态谓词；G 是构元（Geneme），英文全称 Genesis Atom，表示系统内部构造出的新概念，一般不由 LLM 输出但保留该合法选项。禁止把总称 C 当作 type。"昨天""每天""东边""在超市"等时间/地点表达为 E；"买""升起""没写""让""打""洗"等动作或状态为 P。
+10. role 只允许四个值：agent（有意图的施动者）、predicate（某个 SPO 框架的核心动作或状态；每个 SPO 框架恰有一个，但同一 component 可以包含从属 SPO 的 predicate）、patient（动作承受者）、modifier（实体属性、动作方式/伴随状态、时间、地点或非句式条件成分）。predicate 的 type 必须为 P；agent/patient 的 type 可以为 E 或 G；modifier 的 type 可以为 E、P 或 G。修饰成分自身构成一个从属事件时，其核心动作仍使用 role=predicate，并通过 target_occ 指向所修饰的上级成分，不得仅因它不是根谓词就降级为 modifier。
 11. resolved 三态规则：普通非指代 atom 为 null；指代对象明确且唯一、已把 text 替换为目标实体时为 true，替换后的 text 必须与被指代实体的规范化 text 完全一致；指代对象不明确时保留原代词 text 并为 false。不得为了让事件看起来完整而猜测不明确的指代。
 
 ## target_occ 与事件闭包
@@ -39,7 +39,7 @@ NOESIS_CANONICAL_PROMPT = """\
 
 ## hypothesis 的 rule_template
 20. fact 禁止出现 rule_template；hypothesis 必须包含合法 rule_template。
-21. rule_template 只是 tree/atoms 的结构化投影，不得新增原文没有的条件或结论，所有字符串必须来自该 component 的 atoms：premise 至少一个元素，每个元素包含 text、type（E/P）、role（agent/predicate/patient/modifier）；conclusion 的 predicate、agent、patient、modifier 全部必填，没有对应内容时使用 []；condition 为字符串数组，没有额外条件时为 []。
+21. rule_template 只是 tree/atoms 的结构化投影，不得新增原文没有的条件或结论，所有字符串必须来自该 component 的 atoms：premise 至少一个元素，每个元素包含 text、type（E/P/G）、role（agent/predicate/patient/modifier）；conclusion 的 predicate、agent、patient、modifier 全部必填，没有对应内容时使用 []；condition 为字符串数组，没有额外条件时为 []。
 
 ## 禁止项
 22. 不输出 event_time、confidence、support、counter、RDF 三元组、任何 ID 或数据库字段。
@@ -47,7 +47,7 @@ NOESIS_CANONICAL_PROMPT = """\
 24. 如果无法确定某个 component 的 atoms、tree 或 target_occ，则不要输出该 component。
 
 ## 权威示例
-以下四个示例逐字段遵守上述规则，不得新增其他示例风格：
+以下三个示例逐字段遵守上述规则，不得新增其他示例风格：
 
 ### 示例 1：纯事实
 输入：昨天妈妈在超市买了苹果。
@@ -131,66 +131,6 @@ NOESIS_CANONICAL_PROMPT = """\
           "predicate": "没写",
           "agent": [{{"text": "小明", "modifier": [], "implied": true}}],
           "patient": [{{"text": "作业", "modifier": [], "implied": false}}],
-          "modifier": [],
-          "nested": [],
-          "conditional": []
-        }}
-      ],
-      "conditional": []
-    }}
-  }}
-]
-
-### 示例 4：两个独立事件闭包
-输入：妈妈让小明打酱油，爸爸让小红洗碗。
-输出：
-[
-  {{
-    "utterance_type": "fact",
-    "atoms": [
-      {{"pos": 1, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
-      {{"pos": 2, "text": "让", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 3, "text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}},
-      {{"pos": 4, "text": "打", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null}},
-      {{"pos": 5, "text": "酱油", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}}
-    ],
-    "tree": {{
-      "predicate": "让",
-      "agent": [{{"text": "妈妈", "modifier": [], "implied": false}}],
-      "patient": [{{"text": "小明", "modifier": [], "implied": false}}],
-      "modifier": [],
-      "nested": [
-        {{
-          "predicate": "打",
-          "agent": [{{"text": "小明", "modifier": [], "implied": true}}],
-          "patient": [{{"text": "酱油", "modifier": [], "implied": false}}],
-          "modifier": [],
-          "nested": [],
-          "conditional": []
-        }}
-      ],
-      "conditional": []
-    }}
-  }},
-  {{
-    "utterance_type": "fact",
-    "atoms": [
-      {{"pos": 1, "text": "爸爸", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
-      {{"pos": 2, "text": "让", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 3, "text": "小红", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}},
-      {{"pos": 4, "text": "洗", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null}},
-      {{"pos": 5, "text": "碗", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}}
-    ],
-    "tree": {{
-      "predicate": "让",
-      "agent": [{{"text": "爸爸", "modifier": [], "implied": false}}],
-      "patient": [{{"text": "小红", "modifier": [], "implied": false}}],
-      "modifier": [],
-      "nested": [
-        {{
-          "predicate": "洗",
-          "agent": [{{"text": "小红", "modifier": [], "implied": true}}],
-          "patient": [{{"text": "碗", "modifier": [], "implied": false}}],
           "modifier": [],
           "nested": [],
           "conditional": []

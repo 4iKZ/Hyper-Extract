@@ -3,6 +3,8 @@
 import copy
 
 import pytest
+from pydantic import ValidationError
+
 from hyperextract.noesis import (
     ConditionalBranch,
     ExtractionAlert,
@@ -18,7 +20,6 @@ from hyperextract.noesis import (
     TreeArgument,
     ValidationResult,
 )
-from pydantic import ValidationError
 
 MINIMAL_TREE = {
     "predicate": "买",
@@ -294,6 +295,13 @@ class TestAtomSchema:
         with pytest.raises(ValidationError):
             NoesisAtom.model_validate(atom)
 
+    @pytest.mark.parametrize("atom_type", ["E", "P", "G"])
+    def test_type_accepts_all_stored_cogneme_types(self, atom_type):
+        atom = copy.deepcopy(VALID_ATOM)
+        atom["type"] = atom_type
+
+        assert NoesisAtom.model_validate(atom).type == atom_type
+
     @pytest.mark.parametrize("bad_role", ["subject", "object", "root", "AGENT"])
     def test_role_enum_strict(self, bad_role):
         atom = copy.deepcopy(VALID_ATOM)
@@ -388,6 +396,11 @@ class TestRuleTemplateSchema:
         template["condition"] = []
 
         assert RuleTemplate.model_validate(template).condition == []
+
+    def test_rule_premise_accepts_geneme_type(self):
+        premise = {"text": "生长周期", "type": "G", "role": "patient"}
+
+        assert RulePremise.model_validate(premise).type == "G"
 
     @pytest.mark.parametrize("missing_field", ["predicate", "agent", "patient", "modifier"])
     def test_conclusion_missing_field_rejected(self, missing_field):

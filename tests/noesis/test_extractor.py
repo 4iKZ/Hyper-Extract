@@ -5,15 +5,17 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
+from pydantic import Field
+
 from hyperextract.noesis import (
     create_noesis_extractor,
     extract_noesis_components,
     validate_components,
 )
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage
-from langchain_core.outputs import ChatGeneration, ChatResult
-from pydantic import Field
+from hyperextract.noesis.prompt import NOESIS_CANONICAL_PROMPT
 
 GOLDEN_CASES_PATH = Path(__file__).parent / "fixtures" / "golden_cases.json"
 SOURCE_TEXT = "昨天妈妈在超市买了苹果。"
@@ -263,20 +265,20 @@ class TestExtractorRetry:
 
 
 class TestGoldenCases:
-    """The four authoritative examples must pass field-by-field (requirement 15.6)."""
+    """The three authoritative examples must pass field-by-field (requirement 15.6)."""
 
     @pytest.fixture(scope="class")
     def golden_cases(self):
         with open(GOLDEN_CASES_PATH, encoding="utf-8") as file:
             return json.load(file)
 
-    def test_fixture_contains_four_cases(self, golden_cases):
-        assert len(golden_cases) == 4
+    def test_fixture_contains_three_cases(self, golden_cases):
+        assert len(golden_cases) == 3
         for case in golden_cases:
             assert set(case.keys()) == {"input", "expected"}
             assert isinstance(case["expected"], list)
 
-    @pytest.mark.parametrize("case_index", [0, 1, 2, 3])
+    @pytest.mark.parametrize("case_index", [0, 1, 2])
     def test_golden_case_validates_field_by_field(self, golden_cases, case_index):
         case = golden_cases[case_index]
 
@@ -285,3 +287,24 @@ class TestGoldenCases:
         assert result.alerts == []
         dumped = [component.model_dump() for component in result.components]
         assert dumped == case["expected"]
+
+
+class TestCanonicalPromptTerminology:
+    """The latest +1 terminology and three-example limit are authoritative."""
+
+    def test_uses_cogneme_terms_and_epg_storage_codes(self):
+        assert "概元（Cogneme）" in NOESIS_CANONICAL_PROMPT
+        assert "实元（Enteme）" in NOESIS_CANONICAL_PROMPT
+        assert "谓元（Prediceme）" in NOESIS_CANONICAL_PROMPT
+        assert "构元（Geneme）" in NOESIS_CANONICAL_PROMPT
+        assert "E、P、G" in NOESIS_CANONICAL_PROMPT
+        assert "总称 C 只用于文档和讨论" in NOESIS_CANONICAL_PROMPT
+
+    def test_contains_exactly_three_authoritative_examples(self):
+        assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
+        assert "妈妈让小明打酱油，爸爸让小红洗碗" not in NOESIS_CANONICAL_PROMPT
+
+    def test_examples_keep_confirmed_target_and_resolved_contract(self):
+        assert '"text": "太阳", "type": "E", "role": "agent", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
+        assert '"text": "每天", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
+        assert '"text": "没写", "type": "P", "role": "predicate", "target_occ": 4, "resolved": null' in NOESIS_CANONICAL_PROMPT
