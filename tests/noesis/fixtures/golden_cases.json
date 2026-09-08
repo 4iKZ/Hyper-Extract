@@ -87,5 +87,58 @@
         }
       }
     ]
+  },
+  {
+    "input": "小明坐在沙发上，吃着苹果，玩着苹果手机。",
+    "expected": [
+      {
+        "utterance_type": "fact",
+        "atoms": [
+          {"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null},
+          {"pos": 2, "text": "坐", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
+          {"pos": 3, "text": "在沙发上", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}
+        ],
+        "tree": {
+          "predicate": "坐",
+          "agent": [{"text": "小明", "modifier": [], "implied": false}],
+          "patient": [],
+          "modifier": ["在沙发上"],
+          "nested": [],
+          "conditional": []
+        }
+      },
+      {
+        "utterance_type": "fact",
+        "atoms": [
+          {"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null},
+          {"pos": 2, "text": "吃", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
+          {"pos": 3, "text": "苹果", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}
+        ],
+        "tree": {
+          "predicate": "吃",
+          "agent": [{"text": "小明", "modifier": [], "implied": false}],
+          "patient": [{"text": "苹果", "modifier": [], "implied": false}],
+          "modifier": [],
+          "nested": [],
+          "conditional": []
+        }
+      },
+      {
+        "utterance_type": "fact",
+        "atoms": [
+          {"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null},
+          {"pos": 2, "text": "玩", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
+          {"pos": 3, "text": "苹果手机", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}
+        ],
+        "tree": {
+          "predicate": "玩",
+          "agent": [{"text": "小明", "modifier": [], "implied": false}],
+          "patient": [{"text": "苹果手机", "modifier": [], "implied": false}],
+          "modifier": [],
+          "nested": [],
+          "conditional": []
+        }
+      }
+    ]
   }
 ]

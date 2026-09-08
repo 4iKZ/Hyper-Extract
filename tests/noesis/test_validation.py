@@ -209,6 +209,45 @@ class TestClosureValidation:
         assert len(result.components) == 2
         assert result.alerts == []
 
+    def test_shared_subject_coordinate_predicates_split_into_three_components(self):
+        source_text = "小明坐在沙发上，吃着苹果，玩着苹果手机。"
+        components = [
+            fact(
+                atoms=[
+                    atom(1, "小明", "E", "agent", 2),
+                    atom(2, "坐", "P", "predicate", None),
+                    atom(3, "在沙发上", "E", "modifier", 2),
+                ],
+                tree_=tree("坐", agent=[arg("小明")], modifier=["在沙发上"]),
+            ),
+            fact(
+                atoms=[
+                    atom(1, "小明", "E", "agent", 2),
+                    atom(2, "吃", "P", "predicate", None),
+                    atom(3, "苹果", "E", "patient", 2),
+                ],
+                tree_=tree("吃", agent=[arg("小明")], patient=[arg("苹果")]),
+            ),
+            fact(
+                atoms=[
+                    atom(1, "小明", "E", "agent", 2),
+                    atom(2, "玩", "P", "predicate", None),
+                    atom(3, "苹果手机", "E", "patient", 2),
+                ],
+                tree_=tree("玩", agent=[arg("小明")], patient=[arg("苹果手机")]),
+            ),
+        ]
+
+        result = validate_components(components, source_text=source_text)
+
+        assert len(result.components) == 3
+        assert result.alerts == []
+        assert [component.tree.predicate for component in result.components] == [
+            "坐",
+            "吃",
+            "玩",
+        ]
+
     def test_two_roots_dropped(self):
         component = fact(
             atoms=[

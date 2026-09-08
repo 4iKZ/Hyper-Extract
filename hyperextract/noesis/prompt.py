@@ -14,8 +14,8 @@ NOESIS_CANONICAL_PROMPT = """\
 3. 意见、情感、寒暄、感叹、结构无法确定的陈述、不确定是否为 fact/hypothesis 的内容一律不输出；整段输入没有合法内容时只返回 []，这是正常成功结果。
 
 ## Component 拆分
-4. 每个 component 是一个独立事件闭包：所有概元通过 target_occ 链最终汇聚到一个根谓元。互不关联、互不从属的事件必须拆成多个 component；不同 component 不共享概元，不跨 component 引用 pos。相同实体在两个独立 component 中出现时，分别输出各自概元。
-5. 从属事件（从属句、修饰句）与主句属于同一事件闭包时，通过 tree.nested 保持在同一 component 内；条件分支通过 tree.conditional 表达。
+4. 每个 component 是一个独立事件闭包：所有概元通过 target_occ 链最终汇聚到一个根谓元。互不关联、互不从属的事件必须拆成多个 component；即使多个动作共享同一主语、时间或语境，只要这些谓词彼此并列且互不从属，也必须拆成多个 component，不能把并列谓词放入 tree.nested。共享主语或同时发生本身不构成从属关系。不同 component 不共享概元，不跨 component 引用 pos；共享的主语、时间或其他成分必须在各 component 中分别输出各自概元。完成拆分后，不得再额外输出包含这些并列动作的聚合 component，也不得重复输出同一个事件闭包。
+5. tree.nested 只用于一个动作在语义上充当另一个动作的论元、修饰事件或条件事件，即该动作必须真正依赖或从属于上级动作；条件分支通过 tree.conditional 表达。仅由逗号连接、共享施动者或同时进行的平行动作不是 nested，必须按第 4 条拆分。
 
 ## Atom 规则
 6. 每个概元必须完整输出六个字段：pos、text、type、role、target_occ、resolved，不允许省略或增加字段。概元（Cogneme，代号 C）只是总称；总称 C 只用于文档和讨论，不作为 type 值存储。
@@ -47,7 +47,7 @@ NOESIS_CANONICAL_PROMPT = """\
 24. 如果无法确定某个 component 的 atoms、tree 或 target_occ，则不要输出该 component。
 
 ## 权威示例
-以下三个示例逐字段遵守上述规则，不得新增其他示例风格：
+以下四个示例逐字段遵守上述规则，不得新增其他示例风格：
 
 ### 示例 1：纯事实
 输入：昨天妈妈在超市买了苹果。
@@ -136,6 +136,60 @@ NOESIS_CANONICAL_PROMPT = """\
           "conditional": []
         }}
       ],
+      "conditional": []
+    }}
+  }}
+]
+
+### 示例 4：共享主语的并列事实拆分
+输入：小明坐在沙发上，吃着苹果，玩着苹果手机。
+输出：
+[
+  {{
+    "utterance_type": "fact",
+    "atoms": [
+      {{"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "坐", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
+      {{"pos": 3, "text": "在沙发上", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}}
+    ],
+    "tree": {{
+      "predicate": "坐",
+      "agent": [{{"text": "小明", "modifier": [], "implied": false}}],
+      "patient": [],
+      "modifier": ["在沙发上"],
+      "nested": [],
+      "conditional": []
+    }}
+  }},
+  {{
+    "utterance_type": "fact",
+    "atoms": [
+      {{"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "吃", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
+      {{"pos": 3, "text": "苹果", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}
+    ],
+    "tree": {{
+      "predicate": "吃",
+      "agent": [{{"text": "小明", "modifier": [], "implied": false}}],
+      "patient": [{{"text": "苹果", "modifier": [], "implied": false}}],
+      "modifier": [],
+      "nested": [],
+      "conditional": []
+    }}
+  }},
+  {{
+    "utterance_type": "fact",
+    "atoms": [
+      {{"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "玩", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
+      {{"pos": 3, "text": "苹果手机", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}
+    ],
+    "tree": {{
+      "predicate": "玩",
+      "agent": [{{"text": "小明", "modifier": [], "implied": false}}],
+      "patient": [{{"text": "苹果手机", "modifier": [], "implied": false}}],
+      "modifier": [],
+      "nested": [],
       "conditional": []
     }}
   }}

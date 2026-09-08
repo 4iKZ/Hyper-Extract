@@ -265,20 +265,20 @@ class TestExtractorRetry:
 
 
 class TestGoldenCases:
-    """The three authoritative examples must pass field-by-field (requirement 15.6)."""
+    """The four authoritative examples must pass field-by-field (requirement 15.6)."""
 
     @pytest.fixture(scope="class")
     def golden_cases(self):
         with open(GOLDEN_CASES_PATH, encoding="utf-8") as file:
             return json.load(file)
 
-    def test_fixture_contains_three_cases(self, golden_cases):
-        assert len(golden_cases) == 3
+    def test_fixture_contains_four_cases(self, golden_cases):
+        assert len(golden_cases) == 4
         for case in golden_cases:
             assert set(case.keys()) == {"input", "expected"}
             assert isinstance(case["expected"], list)
 
-    @pytest.mark.parametrize("case_index", [0, 1, 2])
+    @pytest.mark.parametrize("case_index", [0, 1, 2, 3])
     def test_golden_case_validates_field_by_field(self, golden_cases, case_index):
         case = golden_cases[case_index]
 
@@ -290,7 +290,7 @@ class TestGoldenCases:
 
 
 class TestCanonicalPromptTerminology:
-    """The latest +1 terminology and three-example limit are authoritative."""
+    """The latest +1 terminology and four authoritative examples are frozen."""
 
     def test_uses_cogneme_terms_and_epg_storage_codes(self):
         assert "概元（Cogneme）" in NOESIS_CANONICAL_PROMPT
@@ -300,11 +300,21 @@ class TestCanonicalPromptTerminology:
         assert "E、P、G" in NOESIS_CANONICAL_PROMPT
         assert "总称 C 只用于文档和讨论" in NOESIS_CANONICAL_PROMPT
 
-    def test_contains_exactly_three_authoritative_examples(self):
-        assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
-        assert "妈妈让小明打酱油，爸爸让小红洗碗" not in NOESIS_CANONICAL_PROMPT
+    def test_contains_fourth_coordinate_predicate_example(self):
+        assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 4
+        assert "以下四个示例" in NOESIS_CANONICAL_PROMPT
+        assert "小明坐在沙发上，吃着苹果，玩着苹果手机。" in NOESIS_CANONICAL_PROMPT
+        assert "### 示例 4：共享主语的并列事实拆分" in NOESIS_CANONICAL_PROMPT
 
     def test_examples_keep_confirmed_target_and_resolved_contract(self):
         assert '"text": "太阳", "type": "E", "role": "agent", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
         assert '"text": "每天", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
         assert '"text": "没写", "type": "P", "role": "predicate", "target_occ": 4, "resolved": null' in NOESIS_CANONICAL_PROMPT
+
+    def test_explicitly_splits_coordinate_predicates_even_with_shared_context(self):
+        assert "共享同一主语、时间或语境" in NOESIS_CANONICAL_PROMPT
+        assert "并列且互不从属" in NOESIS_CANONICAL_PROMPT
+        assert "必须拆成多个 component" in NOESIS_CANONICAL_PROMPT
+        assert "共享主语或同时发生本身不构成从属关系" in NOESIS_CANONICAL_PROMPT
+        assert "论元、修饰事件或条件事件" in NOESIS_CANONICAL_PROMPT
+        assert "不得再额外输出包含这些并列动作的聚合 component" in NOESIS_CANONICAL_PROMPT
