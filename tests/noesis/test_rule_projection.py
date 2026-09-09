@@ -103,35 +103,38 @@ def valid_apple_rule():
 
 
 class TestPremiseProjection:
-    """premise entries must match an atom's (text, type, role) triple (8.2)."""
+    """04A §4: the rule track is not bound by tree ⊆ atoms — premise entries
+    may be source-backed composite expressions absent from the atom set."""
 
-    def test_premise_type_mismatch_dropped(self):
+    def test_premise_composite_expression_passes(self):
         rule = valid_sun_rule()
-        rule["premise"] = [{"text": "太阳", "type": "P", "role": "agent"}]
+        rule["premise"].append({"text": "打酱油", "type": "P", "role": "modifier"})
+
+        result = validate([sun_hypothesis(rule)], "太阳每天从东边升起，打酱油")
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+
+    def test_premise_role_describes_rule_not_event_edge(self):
+        rule = valid_sun_rule()
+        rule["premise"] = [{"text": "太阳", "type": "P", "role": "predicate"}]
 
         result = validate([sun_hypothesis(rule)], "太阳每天从东边升起")
 
-        assert_dropped(result)
+        assert len(result.components) == 1
+        assert result.alerts == []
 
-    def test_premise_role_mismatch_dropped(self):
+    def test_premise_absent_from_source_is_dropped(self):
         rule = valid_sun_rule()
-        rule["premise"] = [{"text": "太阳", "type": "E", "role": "predicate"}]
+        rule["premise"].append({"text": "月亮", "type": "E", "role": "agent"})
 
         result = validate([sun_hypothesis(rule)], "太阳每天从东边升起")
-
-        assert_dropped(result)
-
-    def test_premise_type_mismatch_with_patient_role_dropped(self):
-        rule = valid_apple_rule()
-        rule["premise"] = [{"text": "苹果", "type": "P", "role": "patient"}]
-
-        result = validate([apple_hypothesis(rule)], "小明每天吃苹果")
 
         assert_dropped(result)
 
 
 class TestConclusionProjection:
-    """conclusion must project the root event with role-matched atoms (8.3)."""
+    """Conclusion literals must project matching roles in the closure."""
 
     def test_conclusion_predicate_not_root_dropped(self):
         rule = valid_sun_rule()
@@ -141,24 +144,10 @@ class TestConclusionProjection:
 
         assert_dropped(result)
 
-    def test_conclusion_agent_role_mismatch_dropped(self):
+    def test_conclusion_role_swap_is_dropped(self):
         rule = valid_apple_rule()
         rule["conclusion"]["agent"] = ["苹果"]
-
-        result = validate([apple_hypothesis(rule)], "小明每天吃苹果")
-
-        assert_dropped(result)
-
-    def test_conclusion_patient_role_mismatch_dropped(self):
-        rule = valid_apple_rule()
         rule["conclusion"]["patient"] = ["小明"]
-
-        result = validate([apple_hypothesis(rule)], "小明每天吃苹果")
-
-        assert_dropped(result)
-
-    def test_conclusion_modifier_role_mismatch_dropped(self):
-        rule = valid_apple_rule()
         rule["conclusion"]["modifier"] = ["小明"]
 
         result = validate([apple_hypothesis(rule)], "小明每天吃苹果")
@@ -167,15 +156,17 @@ class TestConclusionProjection:
 
 
 class TestConditionProjection:
-    """condition strings must come from atoms (8.4, role unrestricted)."""
+    """04A §4: conditions may keep negated composite expressions like
+    「NOT 打酱油」 when the expression is grounded in the source."""
 
-    def test_condition_outside_atoms_dropped(self):
+    def test_source_backed_composite_condition_passes(self):
         rule = valid_sun_rule()
-        rule["condition"] = ["有时"]
+        rule["condition"] = ["NOT 东边升起"]
 
         result = validate([sun_hypothesis(rule)], "太阳每天从东边升起")
 
-        assert_dropped(result)
+        assert len(result.components) == 1
+        assert result.alerts == []
 
     def test_condition_from_any_atom_passes(self):
         rule = valid_sun_rule()
@@ -185,6 +176,14 @@ class TestConditionProjection:
 
         assert len(result.components) == 1
         assert result.alerts == []
+
+    def test_condition_absent_from_source_is_dropped(self):
+        rule = valid_sun_rule()
+        rule["condition"] = ["火星爆炸"]
+
+        result = validate([sun_hypothesis(rule)], "太阳每天从东边升起")
+
+        assert_dropped(result)
 
 
 class TestValidProjection:

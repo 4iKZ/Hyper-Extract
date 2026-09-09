@@ -52,7 +52,9 @@ def assert_dropped(result):
 class TestClosureEdgeRules:
     """Section 6.2: agent/patient point at their SPO predicate."""
 
-    def test_agent_pointing_to_patient_dropped(self):
+    def test_agent_pointing_to_patient_repaired(self):
+        """04A §5: an agent pointing at a non-predicate pos is repaired to
+        the tree-determined predicate occurrence with a warning."""
         component = fact(
             atoms=[
                 atom(1, "买", "P", "predicate", None),
@@ -64,9 +66,11 @@ class TestClosureEdgeRules:
 
         result = validate([component], "妈妈买苹果")
 
-        assert_dropped(result)
+        assert len(result.components) == 1
+        assert result.components[0].model_dump()["atoms"][1]["target_occ"] == 1
+        assert [alert.alert_code for alert in result.alerts] == ["target_occ_repaired"]
 
-    def test_patient_pointing_to_agent_dropped(self):
+    def test_patient_pointing_to_agent_repaired(self):
         component = fact(
             atoms=[
                 atom(1, "买", "P", "predicate", None),
@@ -78,9 +82,11 @@ class TestClosureEdgeRules:
 
         result = validate([component], "妈妈买苹果")
 
-        assert_dropped(result)
+        assert len(result.components) == 1
+        assert result.components[0].model_dump()["atoms"][2]["target_occ"] == 1
+        assert [alert.alert_code for alert in result.alerts] == ["target_occ_repaired"]
 
-    def test_modifier_pointing_to_modifier_dropped(self):
+    def test_modifier_pointing_to_modifier_repaired(self):
         component = fact(
             atoms=[
                 atom(1, "买", "P", "predicate", None),
@@ -93,7 +99,31 @@ class TestClosureEdgeRules:
 
         result = validate([component], "昨天妈妈在超市买了苹果")
 
-        assert_dropped(result)
+        assert len(result.components) == 1
+        assert result.components[0].atoms[2].target_occ == 1
+        assert [alert.alert_code for alert in result.alerts] == ["target_occ_repaired"]
+
+    def test_agent_pointing_to_wrong_predicate_repaired(self):
+        component = fact(
+            atoms=[
+                atom(1, "妈妈", "E", "agent", 4),
+                atom(2, "买", "P", "predicate", None),
+                atom(3, "苹果", "E", "patient", 2),
+                atom(4, "清洗", "P", "predicate", 2),
+            ],
+            tree_=tree(
+                "买",
+                agent=[arg("妈妈")],
+                patient=[arg("苹果")],
+                nested=[tree("清洗")],
+            ),
+        )
+
+        result = validate([component], "妈妈买苹果清洗")
+
+        assert len(result.components) == 1
+        assert result.components[0].atoms[0].target_occ == 2
+        assert [alert.alert_code for alert in result.alerts] == ["target_occ_repaired"]
 
     def test_sentence_modifier_predicate_can_point_to_argument(self):
         component = fact(
@@ -206,7 +236,9 @@ class TestAtomTypeRoleCombinations:
         assert len(result.components) == 1
         assert result.alerts == []
 
-    def test_geneme_patient_passes_as_constructed_concept(self):
+    def test_external_geneme_patient_rejected(self):
+        """04A §3.1.6: an externally extracted G component is dropped with a
+        non-blocking alert — G is system-constructed only."""
         component = fact(
             atoms=[
                 atom(1, "系统", "E", "agent", 2),
@@ -218,10 +250,12 @@ class TestAtomTypeRoleCombinations:
 
         result = validate([component], "系统识别生长周期")
 
-        assert len(result.components) == 1
-        assert result.alerts == []
+        assert result.components == []
+        assert len(result.alerts) == 1
+        assert result.alerts[0].alert_code == "external_geneme_rejected"
+        assert result.alerts[0].severity == "warning"
 
-    def test_geneme_can_be_inherited_as_implied_nested_argument(self):
+    def test_external_geneme_implied_nested_argument_rejected(self):
         component = fact(
             atoms=[
                 atom(1, "生长周期", "G", "patient", 2),
@@ -237,8 +271,8 @@ class TestAtomTypeRoleCombinations:
 
         result = validate([component], "生长周期形成后结束")
 
-        assert len(result.components) == 1
-        assert result.alerts == []
+        assert result.components == []
+        assert [alert.alert_code for alert in result.alerts] == ["external_geneme_rejected"]
 
 
 class TestTreeStructuralAccounting:
@@ -258,7 +292,7 @@ class TestTreeStructuralAccounting:
 
         assert_dropped(result)
 
-    def test_patient_modifier_attached_to_root_dropped(self):
+    def test_patient_modifier_attached_to_root_repaired_from_tree(self):
         component = fact(
             atoms=[
                 atom(1, "妈妈", "E", "agent", 2),
@@ -273,7 +307,9 @@ class TestTreeStructuralAccounting:
 
         result = validate([component], "妈妈买了新鲜的苹果")
 
-        assert_dropped(result)
+        assert len(result.components) == 1
+        assert result.components[0].atoms[3].target_occ == 2
+        assert [alert.alert_code for alert in result.alerts] == ["target_occ_repaired"]
 
     def test_subordinate_predicate_missing_from_tree_dropped(self):
         component = fact(

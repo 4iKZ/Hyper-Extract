@@ -39,7 +39,7 @@ NOESIS_CANONICAL_PROMPT = """\
 
 ## hypothesis 的 rule_template
 20. fact 禁止出现 rule_template；hypothesis 必须包含合法 rule_template。
-21. rule_template 只是 tree/atoms 的结构化投影，不得新增原文没有的条件或结论，所有字符串必须来自该 component 的 atoms：premise 至少一个元素，每个元素包含 text、type（E/P/G）、role（agent/predicate/patient/modifier）；conclusion 的 predicate、agent、patient、modifier 全部必填，没有对应内容时使用 []；condition 为字符串数组，没有额外条件时为 []。
+21. rule_template 只是 tree/atoms 的结构化投影，不得新增原文没有的条件或结论。它允许把原文已有概元组合成规律表达（例如“打”+“酱油”组合为“打酱油”），condition 允许使用逻辑前缀 NOT（例如“NOT 打酱油”）；除这种组合与逻辑前缀外，所有内容都必须能由当前 component 的原文和 atoms 支持：premise 至少一个元素，每个元素包含 text、type（E/P/G）、role（agent/predicate/patient/modifier）；conclusion 的 predicate、agent、patient、modifier 全部必填，没有对应内容时使用 []；condition 为字符串数组，没有额外条件时为 []。
 
 ## 禁止项
 22. 不输出 event_time、confidence、support、counter、RDF 三元组、任何 ID 或数据库字段。
@@ -47,7 +47,7 @@ NOESIS_CANONICAL_PROMPT = """\
 24. 如果无法确定某个 component 的 atoms、tree 或 target_occ，则不要输出该 component。
 
 ## 权威示例
-以下四个示例逐字段遵守上述规则，不得新增其他示例风格：
+以下三个示例逐字段遵守上述规则，不得新增其他示例风格：
 
 ### 示例 1：纯事实
 输入：昨天妈妈在超市买了苹果。
@@ -108,29 +108,29 @@ NOESIS_CANONICAL_PROMPT = """\
   }}
 ]
 
-### 示例 3：具体事实、从属事件与指代消解
-输入：小明没写作业后揍了自己。
+### 示例 3：事实与规律复合、嵌套从属谓词与指代消解
+输入：妈妈让小明打酱油，否则就揍他。
 输出：
 [
   {{
     "utterance_type": "fact",
     "atoms": [
-      {{"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 4, "resolved": null}},
-      {{"pos": 2, "text": "没写", "type": "P", "role": "predicate", "target_occ": 4, "resolved": null}},
-      {{"pos": 3, "text": "作业", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}},
-      {{"pos": 4, "text": "揍", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 5, "text": "小明", "type": "E", "role": "patient", "target_occ": 4, "resolved": true}}
+      {{"pos": 1, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "让", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
+      {{"pos": 3, "text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}},
+      {{"pos": 4, "text": "打", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null}},
+      {{"pos": 5, "text": "酱油", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}}
     ],
     "tree": {{
-      "predicate": "揍",
-      "agent": [{{"text": "小明", "modifier": [], "implied": false}}],
+      "predicate": "让",
+      "agent": [{{"text": "妈妈", "modifier": [], "implied": false}}],
       "patient": [{{"text": "小明", "modifier": [], "implied": false}}],
       "modifier": [],
       "nested": [
         {{
-          "predicate": "没写",
-          "agent": [{{"text": "小明", "modifier": [], "implied": true}}],
-          "patient": [{{"text": "作业", "modifier": [], "implied": false}}],
+          "predicate": "打",
+          "agent": [],
+          "patient": [{{"text": "酱油", "modifier": [], "implied": false}}],
           "modifier": [],
           "nested": [],
           "conditional": []
@@ -138,59 +138,34 @@ NOESIS_CANONICAL_PROMPT = """\
       ],
       "conditional": []
     }}
-  }}
-]
-
-### 示例 4：共享主语的并列事实拆分
-输入：小明坐在沙发上，吃着苹果，玩着苹果手机。
-输出：
-[
-  {{
-    "utterance_type": "fact",
-    "atoms": [
-      {{"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
-      {{"pos": 2, "text": "坐", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 3, "text": "在沙发上", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}}
-    ],
-    "tree": {{
-      "predicate": "坐",
-      "agent": [{{"text": "小明", "modifier": [], "implied": false}}],
-      "patient": [],
-      "modifier": ["在沙发上"],
-      "nested": [],
-      "conditional": []
-    }}
   }},
   {{
-    "utterance_type": "fact",
+    "utterance_type": "hypothesis",
     "atoms": [
-      {{"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
-      {{"pos": 2, "text": "吃", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 3, "text": "苹果", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}
+      {{"pos": 1, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "揍", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
+      {{"pos": 3, "text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": true}}
     ],
     "tree": {{
-      "predicate": "吃",
-      "agent": [{{"text": "小明", "modifier": [], "implied": false}}],
-      "patient": [{{"text": "苹果", "modifier": [], "implied": false}}],
+      "predicate": "揍",
+      "agent": [{{"text": "妈妈", "modifier": [], "implied": false}}],
+      "patient": [{{"text": "小明", "modifier": [], "implied": false}}],
       "modifier": [],
       "nested": [],
       "conditional": []
-    }}
-  }},
-  {{
-    "utterance_type": "fact",
-    "atoms": [
-      {{"pos": 1, "text": "小明", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
-      {{"pos": 2, "text": "玩", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 3, "text": "苹果手机", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}
-    ],
-    "tree": {{
-      "predicate": "玩",
-      "agent": [{{"text": "小明", "modifier": [], "implied": false}}],
-      "patient": [{{"text": "苹果手机", "modifier": [], "implied": false}}],
-      "modifier": [],
-      "nested": [],
-      "conditional": []
+    }},
+    "rule_template": {{
+      "premise": [
+        {{"text": "小明", "type": "E", "role": "agent"}},
+        {{"text": "打酱油", "type": "P", "role": "modifier"}}
+      ],
+      "conclusion": {{
+        "predicate": "揍",
+        "agent": [],
+        "patient": ["小明"],
+        "modifier": []
+      }},
+      "condition": ["NOT 打酱油"]
     }}
   }}
 ]

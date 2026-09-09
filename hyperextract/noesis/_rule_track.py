@@ -1,44 +1,54 @@
-"""Rule template structural projection checks (contract section 8)."""
+"""Rule-template projection checks for the latest Stage 1 contract.
+
+The rule track may compose source-backed expressions such as ``打酱油`` and
+``NOT 打酱油`` even when those exact strings are not individual atoms.  That
+exception is deliberately narrow: it does not permit the model to introduce
+entities, actions, conditions, or conclusions absent from the source.
+"""
+
+import re
 
 from ._closure import _SemanticFailure
 from .models import HypothesisComponent, NoesisAtom
 
+_LOGICAL_PREFIX = re.compile(r"^(?:NOT)\s+", re.IGNORECASE)
 
-def _check_rule_template(component: HypothesisComponent, root: NoesisAtom) -> None:
-    """The rule template must be a structural projection of atoms and tree.
 
-    premise entries must match an atom's (text, type, role) triple; the
-    conclusion predicate must be the root predicate; conclusion role lists
-    must reference atoms of the matching role; conditions must come from
-    atoms (section 8.4, role unrestricted).
+def _source_backed(text: str, normalized_source: str) -> bool:
+    """Return whether a rule expression is grounded in the input text.
+
+    ``NOT`` is the one sanctioned synthetic operator in the authoritative
+    examples.  The expression following it must still occur in the source.
     """
-    atoms = component.atoms
-    triples = {(atom.text, atom.type, atom.role) for atom in atoms}
-    atom_texts = {atom.text for atom in atoms}
-    texts_by_role: dict[str, set[str]] = {"agent": set(), "patient": set(), "modifier": set()}
-    for atom in atoms:
-        if atom.role in texts_by_role:
-            texts_by_role[atom.role].add(atom.text)
+    literal = _LOGICAL_PREFIX.sub("", text).strip()
+    return bool(literal) and literal in normalized_source
 
-    rule = component.rule_template
-    for index, premise in enumerate(rule.premise):
-        if (premise.text, premise.type, premise.role) not in triples:
-            raise _SemanticFailure("rule_premise_mismatch", f"rule_template.premise[{index}]")
 
-    conclusion = rule.conclusion
-    if conclusion.predicate != root.text:
-        raise _SemanticFailure(
-            "rule_conclusion_mismatch", "rule_template.conclusion.predicate"
-        )
-    for field in ("agent", "patient", "modifier"):
-        for index, value in enumerate(getattr(conclusion, field)):
-            if value not in texts_by_role[field]:
+def _check_rule_template(
+    component: HypothesisComponent, root: NoesisAtom, normalized_source: str
+) -> None:
+    """Require a source-grounded projection while permitting composition."""
+    if component.rule_template.conclusion.predicate != root.text:
+        raise _SemanticFailure("rule_conclusion_mismatch", "rule_template.conclusion.predicate")
+
+    for index, premise in enumerate(component.rule_template.premise):
+        if not _source_backed(premise.text, normalized_source):
+            raise _SemanticFailure("rule_source_violation", f"rule_template.premise[{index}].text")
+
+    conclusion = component.rule_template.conclusion
+    for role in ("agent", "patient", "modifier"):
+        allowed = {
+            atom.text
+            for atom in component.atoms
+            if atom.role == role
+        }
+        for index, value in enumerate(getattr(conclusion, role)):
+            if value not in allowed:
                 raise _SemanticFailure(
-                    "rule_conclusion_mismatch", f"rule_template.conclusion.{field}[{index}]"
+                    "rule_projection_mismatch",
+                    f"rule_template.conclusion.{role}[{index}]",
                 )
 
-    for index, condition in enumerate(rule.condition):
-        if condition not in atom_texts:
-            raise _SemanticFailure(
-                "rule_template_new_word", f"rule_template.condition[{index}]"
-            )
+    for index, condition in enumerate(component.rule_template.condition):
+        if not _source_backed(condition, normalized_source):
+            raise _SemanticFailure("rule_source_violation", f"rule_template.condition[{index}]")

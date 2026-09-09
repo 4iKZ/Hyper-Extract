@@ -3,6 +3,7 @@
 import copy
 
 import pytest
+
 from hyperextract.noesis import validate_components
 
 SOURCE_TEXT = (
@@ -248,7 +249,9 @@ class TestClosureValidation:
             "玩",
         ]
 
-    def test_two_roots_dropped(self):
+    def test_two_roots_arbitrated_tree_selects_core_predicate(self):
+        """04A §5: competing root predicates — the tree uniquely selects 买,
+        the non-clause verb 吃 demotes to modifier with a warning."""
         component = fact(
             atoms=[
                 atom(1, "买", "P", "predicate", None),
@@ -260,10 +263,33 @@ class TestClosureValidation:
 
         result = validate([component])
 
+        assert len(result.components) == 1
+        atoms = result.components[0].model_dump()["atoms"]
+        assert [entry["role"] for entry in atoms] == ["predicate", "modifier", "patient"]
+        assert atoms[1]["target_occ"] == 1
+        assert [alert.alert_code for alert in result.alerts] == ["coordinate_predicate_demoted"]
+
+    def test_two_roots_unselectable_retries_then_drops(self):
+        """The tree root matches neither competing predicate: not repairable,
+        the component is flagged for a whole-input retry."""
+        component = fact(
+            atoms=[
+                atom(1, "买", "P", "predicate", None),
+                atom(2, "吃", "P", "predicate", None),
+                atom(3, "苹果", "E", "patient", 1),
+            ],
+            tree_=tree("洗", patient=[arg("苹果")]),
+        )
+
+        result = validate([component])
+
         assert result.components == []
+        assert result.retry_needed is True
         assert_drop_alert(result)
 
-    def test_no_root_dropped(self):
+    def test_no_root_repaired_from_unique_p_atom(self):
+        """04A §5: missing root predicate — the unique type=P atom that matches
+        the tree root is repaired into the root predicate role."""
         component = fact(
             atoms=[
                 atom(1, "妈妈", "E", "agent", 2),
@@ -274,7 +300,26 @@ class TestClosureValidation:
 
         result = validate([component])
 
+        assert len(result.components) == 1
+        atoms = result.components[0].model_dump()["atoms"]
+        assert atoms[1]["role"] == "predicate"
+        assert atoms[1]["target_occ"] is None
+        assert [alert.alert_code for alert in result.alerts] == ["missing_predicate_repaired"]
+
+    def test_no_root_ambiguous_p_atoms_retries_then_drops(self):
+        component = fact(
+            atoms=[
+                atom(1, "妈妈", "E", "agent", 2),
+                atom(2, "买", "P", "modifier", 1),
+                atom(3, "买", "P", "patient", 1),
+            ],
+            tree_=tree("买", agent=[arg("妈妈")]),
+        )
+
+        result = validate([component])
+
         assert result.components == []
+        assert result.retry_needed is True
         assert_drop_alert(result)
 
     def test_target_missing_dropped(self):
@@ -453,27 +498,42 @@ class TestDualTrackConsistency:
         assert result.components == []
         assert_drop_alert(result)
 
-    @pytest.mark.parametrize(
-        ("mutate",),
-        [
-            (lambda rule: rule["premise"][0].update({"text": "月亮"}),),
-            (lambda rule: rule["conclusion"].update({"predicate": "落下"}),),
-            (lambda rule: rule["condition"].append("有时"),),
-        ],
-        ids=["premise_new_word", "conclusion_new_word", "condition_new_word"],
-    )
-    def test_rule_template_new_word_dropped(self, mutate):
+    def test_rule_template_source_backed_composition_not_literal_bound(self):
+        """04A §4: the rule track is free of the tree ⊆ atoms constraint —
+        composite premise expressions and negated conditions pass."""
         rule = {
-            "premise": [{"text": "太阳", "type": "E", "role": "agent"}],
+            "premise": [
+                {"text": "太阳", "type": "E", "role": "agent"},
+                {"text": "打酱油", "type": "P", "role": "modifier"},
+            ],
             "conclusion": {
                 "predicate": "升起",
                 "agent": ["太阳"],
                 "patient": [],
                 "modifier": ["东边"],
             },
+            "condition": ["每天", "NOT 打酱油"],
+        }
+
+        result = validate_components(
+            [sun_hypothesis(rule_template=rule)],
+            source_text="太阳每天从东边升起，打酱油",
+        )
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+
+    def test_rule_template_conclusion_predicate_not_root_dropped(self):
+        rule = {
+            "premise": [{"text": "太阳", "type": "E", "role": "agent"}],
+            "conclusion": {
+                "predicate": "落下",
+                "agent": ["太阳"],
+                "patient": [],
+                "modifier": ["东边"],
+            },
             "condition": ["每天"],
         }
-        mutate(rule)
 
         result = validate([sun_hypothesis(rule_template=rule)])
 
@@ -582,3 +642,146 @@ class TestDropAlerts:
         assert len(result.components) == 1
         assert result.components[0].model_dump() == copy.deepcopy(valid)
         assert_drop_alert(result)
+
+
+class TestBoundedRepairs:
+    """04A §5: the raw pre-validation repair layer and its boundaries."""
+
+    def test_external_geneme_dropped_with_non_blocking_alert(self):
+        component = baseline_fact()
+        component["atoms"][3]["type"] = "G"
+
+        result = validate([component])
+
+        assert result.components == []
+        assert [alert.alert_code for alert in result.alerts] == ["external_geneme_rejected"]
+        assert all(alert.severity == "warning" for alert in result.alerts)
+        assert result.retry_needed is False
+
+    def test_external_geneme_in_rule_premise_dropped(self):
+        rule = {
+            "premise": [{"text": "太阳", "type": "G", "role": "agent"}],
+            "conclusion": {"predicate": "升起", "agent": [], "patient": [], "modifier": []},
+            "condition": [],
+        }
+
+        result = validate([sun_hypothesis(rule_template=rule)])
+
+        assert result.components == []
+        assert [alert.alert_code for alert in result.alerts] == ["external_geneme_rejected"]
+
+    def test_empty_array_is_normal_zero_alert(self):
+        result = validate([])
+
+        assert result.components == []
+        assert result.alerts == []
+        assert result.retry_needed is False
+
+    def test_role_outside_enum_demoted_to_modifier_with_warning(self):
+        component = baseline_fact()
+        component["atoms"][1]["role"] = "subject"
+
+        result = validate([component])
+
+        assert len(result.components) == 1
+        assert result.components[0].atoms[1].role == "modifier"
+        assert [alert.alert_code for alert in result.alerts] == ["role_demoted_to_modifier"]
+        assert result.retry_needed is False
+
+    def test_pos_gap_flags_whole_input_retry(self):
+        component = baseline_fact()
+        component["atoms"][3]["pos"] = 5
+
+        result = validate([component])
+
+        assert result.components == []
+        assert result.retry_needed is True
+        assert result.alerts[0].alert_code == "invalid_component_dropped"
+        assert result.alerts[0].details["rule"] == "pos_sequence"
+
+    def test_pos_duplicate_flags_whole_input_retry(self):
+        component = baseline_fact()
+        component["atoms"][3]["pos"] = 3
+
+        result = validate([component])
+
+        assert result.components == []
+        assert result.retry_needed is True
+
+    def test_self_reference_flags_whole_input_retry(self):
+        component = baseline_fact()
+        component["atoms"][0]["target_occ"] = 1
+
+        result = validate([component])
+
+        assert result.components == []
+        assert result.retry_needed is True
+
+    def test_unknown_target_flags_whole_input_retry(self):
+        component = baseline_fact()
+        component["atoms"][3]["target_occ"] = 99
+
+        result = validate([component])
+
+        assert result.components == []
+        assert result.retry_needed is True
+
+    def test_agent_target_ambiguous_flags_retry(self):
+        """小明 appears as agent at two tree levels: no unique repair."""
+        component = fact(
+            atoms=[
+                atom(1, "小明", "E", "agent", 2),
+                atom(2, "让", "P", "predicate", None),
+                atom(3, "小明", "E", "patient", 2),
+                atom(4, "打", "P", "predicate", 3),
+                atom(5, "酱油", "E", "patient", 4),
+            ],
+            tree_=tree(
+                "让",
+                agent=[arg("小明")],
+                patient=[arg("小明")],
+                nested=[tree("打", agent=[arg("小明")], patient=[arg("酱油")])],
+            ),
+        )
+        # agent 小明 points at the patient instead of its predicate — and the
+        # same text is an agent of both levels, so no unique tree repair.
+        component["atoms"][0]["target_occ"] = 3
+
+        result = validate([component])
+
+        assert result.components == []
+        assert result.retry_needed is True
+
+    def test_subordinate_predicate_never_demoted(self):
+        """A subordinate-clause predicate competing for the root keeps its
+        predicate role; only its parent target is repaired."""
+        component = fact(
+            atoms=[
+                atom(1, "妈妈", "E", "agent", 2),
+                atom(2, "让", "P", "predicate", None),
+                atom(3, "小明", "E", "patient", 2),
+                atom(4, "打", "P", "predicate", None),
+                atom(5, "酱油", "E", "patient", 4),
+            ],
+            tree_=tree(
+                "让",
+                agent=[arg("妈妈")],
+                patient=[arg("小明")],
+                nested=[tree("打", patient=[arg("酱油")])],
+            ),
+        )
+
+        result = validate([component])
+
+        assert len(result.components) == 1
+        atoms = result.components[0].model_dump()["atoms"]
+        assert atoms[3]["role"] == "predicate"
+        assert atoms[3]["target_occ"] == 2
+        assert result.retry_needed is False
+
+    def test_valid_component_has_no_retry_flag(self):
+        result = validate([causative_fact()])
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+        assert result.retry_needed is False

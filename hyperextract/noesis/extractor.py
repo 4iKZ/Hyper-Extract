@@ -44,11 +44,12 @@ def extract_noesis_components(
 ) -> ExtractionOutcome:
     """Extract event closure components with at most one retry.
 
-    Call-level failures and schema-level failures retry the whole input once.
-    Validator programming errors are never masked: only the pydantic
-    ``ValidationError`` from the schema layer counts as an extraction failure.
-    Component semantic failures are dropped inside validation without any
-    extra call.
+    Call-level failures, schema-level failures and unrepairable-but-
+    systematic semantic errors (04A §5: pos gaps, self references, cycles,
+    ambiguous targets) retry the whole input once. A second attempt with the
+    same problem is accepted as per-component drops. Validator programming
+    errors are never masked: only the pydantic ``ValidationError`` from the
+    schema layer counts as an extraction failure.
     """
     last_error: Exception | None = None
     for attempt in (1, 2):
@@ -61,6 +62,9 @@ def extract_noesis_components(
             result = validate_components(raw, source_text=text)
         except ValidationError as error:
             last_error = error
+            continue
+        if result.retry_needed and attempt == 1:
+            last_error = None
             continue
         return ExtractionOutcome(
             components=result.components,

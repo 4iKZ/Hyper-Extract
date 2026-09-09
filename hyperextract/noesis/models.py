@@ -132,12 +132,18 @@ class ExtractionAlert(BaseModel):
 
 
 class ValidationResult(BaseModel):
-    """Result of deterministic component validation."""
+    """Result of deterministic component validation.
+
+    ``retry_needed`` marks an unrepairable-but-systematic error class (e.g. pos
+    gaps) where the caller should retry the whole input once before accepting
+    the per-component drops (04A §5).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     components: list[FactComponent | HypothesisComponent]
     alerts: list[ExtractionAlert]
+    retry_needed: bool = False
 
 
 class ExtractionOutcome(BaseModel):
