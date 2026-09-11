@@ -69,7 +69,7 @@ def causative_fact():
             atom(1, "妈妈", "E", "agent", 2),
             atom(2, "让", "P", "predicate", None),
             atom(3, "小明", "E", "patient", 2),
-            atom(4, "打", "P", "predicate", 2),
+            atom(4, "打", "P", "predicate", 3),
             atom(5, "酱油", "E", "patient", 4),
         ],
         tree_=tree(
@@ -183,6 +183,46 @@ class TestClosureValidation:
 
     def test_subordinate_predicate_connected_passes(self):
         result = validate([nested_fact()])
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+
+    def test_complex_shared_pivot_closure_passes(self):
+        """需求 08 §4.1/§4.2: 让/洗 two frames; 小明 is shared, never duplicated."""
+        component = fact(
+            atoms=[
+                atom(1, "昨天晚上", "E", "modifier", 4),
+                atom(2, "妈妈", "E", "agent", 4),
+                atom(3, "在厨房", "E", "modifier", 4),
+                atom(4, "让", "P", "predicate", None),
+                atom(5, "小明", "E", "patient", 4),
+                atom(6, "桌上", "E", "modifier", 9),
+                atom(7, "两个", "E", "modifier", 9),
+                atom(8, "红", "E", "modifier", 9),
+                atom(9, "苹果", "E", "patient", 10),
+                atom(10, "洗", "P", "predicate", 5),
+                atom(11, "干净", "E", "modifier", 10),
+            ],
+            tree_=tree(
+                "让",
+                agent=[arg("妈妈")],
+                patient=[arg("小明")],
+                modifier=["昨天晚上", "在厨房"],
+                nested=[
+                    tree(
+                        "洗",
+                        agent=[arg("小明", implied=True)],
+                        patient=[arg("苹果", modifier=["桌上", "两个", "红"])],
+                        modifier=["干净"],
+                    )
+                ],
+            ),
+        )
+
+        result = validate_components(
+            [component],
+            source_text="昨天晚上，妈妈在厨房让小明把桌上的两个红苹果洗干净。",
+        )
 
         assert len(result.components) == 1
         assert result.alerts == []

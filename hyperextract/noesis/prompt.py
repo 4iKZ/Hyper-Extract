@@ -27,7 +27,7 @@ NOESIS_CANONICAL_PROMPT = """\
 
 ## target_occ 与事件闭包
 12. 每个 component 恰好一个根 atom：role=predicate 且 target_occ=null；只有根 SPO 的核心 predicate 可以 target_occ=null。
-13. 指向规则：agent 指向其所属 SPO 的 predicate；patient 指向其所属 SPO 的 predicate；modifier 指向它实际修饰的 agent、predicate 或 patient；从属句 predicate 指向上级 SPO 的核心 predicate；如果一个修饰成分本身是句子，则该修饰句的 predicate 指向其修饰对象；从属 SPO 内显式出现的 agent/patient 指向从属 predicate；从语境继承但未再次出现的 agent 只在 tree 中以 implied=true 表达，不凭空新增 atom。
+13. 指向规则：agent 指向其所属 SPO 的 predicate；patient 指向其所属 SPO 的 predicate；modifier 指向它实际修饰的 agent、predicate 或 patient；从属句 predicate 指向它在父句中实际修饰的 agent 或 patient occurrence，只修饰整个父句或没有更具体的修饰对象时才指向父句 predicate；如果一个修饰成分本身是句子，则该修饰句的 predicate 指向其修饰对象；从属 SPO 内显式出现的 agent/patient 指向从属 predicate；从语境继承但未再次出现的 agent 只在 tree 中以 implied=true 表达，不凭空新增 atom。
 14. 闭包不变量：除根 predicate 外，每个 atom 的 target_occ 必须非 null，且指向本 component 中存在的 pos；不得指向自身；不得形成环；不得指向其他 component；从任意 atom 沿 target_occ 必须最终到达同一个根 predicate；不得存在与根不连通的孤立 atom；多个互不连通的根表示多个事件闭包，必须拆成多个 component。
 
 ## Tree 结构
@@ -118,7 +118,7 @@ NOESIS_CANONICAL_PROMPT = """\
       {{"pos": 1, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
       {{"pos": 2, "text": "让", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
       {{"pos": 3, "text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}},
-      {{"pos": 4, "text": "打", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null}},
+      {{"pos": 4, "text": "打", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}},
       {{"pos": 5, "text": "酱油", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}}
     ],
     "tree": {{
@@ -129,7 +129,7 @@ NOESIS_CANONICAL_PROMPT = """\
       "nested": [
         {{
           "predicate": "打",
-          "agent": [],
+          "agent": [{{"text": "小明", "modifier": [], "implied": true}}],
           "patient": [{{"text": "酱油", "modifier": [], "implied": false}}],
           "modifier": [],
           "nested": [],

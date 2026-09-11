@@ -65,7 +65,7 @@
           {"pos": 1, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 2, "resolved": null},
           {"pos": 2, "text": "让", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
           {"pos": 3, "text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": null},
-          {"pos": 4, "text": "打", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null},
+          {"pos": 4, "text": "打", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null},
           {"pos": 5, "text": "酱油", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}
         ],
         "tree": {
@@ -76,7 +76,7 @@
           "nested": [
             {
               "predicate": "打",
-              "agent": [],
+              "agent": [{"text": "小明", "modifier": [], "implied": true}],
               "patient": [{"text": "酱油", "modifier": [], "implied": false}],
               "modifier": [],
               "nested": [],

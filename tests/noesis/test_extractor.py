@@ -405,9 +405,11 @@ class TestCanonicalPromptTerminology:
         """The composite example: fact 让/打 chain plus resolved hypothesis."""
         assert "妈妈让小明打酱油，否则就揍他。" in NOESIS_CANONICAL_PROMPT
         assert '"text": "让", "type": "P", "role": "predicate", "target_occ": null, "resolved": null' in NOESIS_CANONICAL_PROMPT
-        assert '"text": "打", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null' in NOESIS_CANONICAL_PROMPT
+        assert '"text": "打", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
         assert '"text": "酱油", "type": "E", "role": "patient", "target_occ": 4, "resolved": null' in NOESIS_CANONICAL_PROMPT
         assert '"text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": true' in NOESIS_CANONICAL_PROMPT
+        # The nested 打 clause records the shared 小明 as an implied agent.
+        assert '"text": "小明", "modifier": [], "implied": true' in NOESIS_CANONICAL_PROMPT
         # The implied 小明 occurrence is never duplicated in the fact atoms.
         after_input = NOESIS_CANONICAL_PROMPT.split("妈妈让小明打酱油，否则就揍他。")[1]
         fact_atoms = after_input.split('"utterance_type": "fact"')[1].split('"utterance_type": "hypothesis"')[0]
@@ -416,6 +418,11 @@ class TestCanonicalPromptTerminology:
         # The rule track keeps the composite expression and the negation.
         assert '"打酱油"' in NOESIS_CANONICAL_PROMPT
         assert '"NOT 打酱油"' in NOESIS_CANONICAL_PROMPT
+
+    def test_subordinate_predicate_points_to_the_modified_occurrence(self):
+        """需求 08 §4.4: 打 points at 小明, not at the parent predicate 让."""
+        assert "从属句 predicate 指向它在父句中实际修饰的 agent 或 patient occurrence" in NOESIS_CANONICAL_PROMPT
+        assert "从属句 predicate 指向上级 SPO 的核心 predicate" not in NOESIS_CANONICAL_PROMPT
 
     def test_examples_keep_confirmed_target_and_resolved_contract(self):
         assert '"text": "太阳", "type": "E", "role": "agent", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
