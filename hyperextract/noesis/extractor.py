@@ -8,7 +8,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 
-from .models import ExtractionAlert, ExtractionOutcome
+from .models import ExtractionAlert, ExtractionOutcome, NoesisExtraction
 from .prompt import NOESIS_CANONICAL_PROMPT
 from .validation import validate_components
 
@@ -17,15 +17,26 @@ def create_noesis_extractor(
     *,
     llm_client: BaseChatModel,
 ) -> Callable[[str], object]:
-    """Build the production raw-JSON call for Noesis event closures.
+    """Build the production strict-JSON-Schema call for Noesis closures.
 
     Noesis deliberately bypasses ``AutoModel.function_calling`` because tool
     schemas cannot reliably preserve both the authoritative root array and the
-    recursive semantic tree. The external contract remains the JSON root array;
-    schema and semantic validation happen in ``extract_noesis_components``.
+    recursive semantic tree. The provider constrains the response to the
+    authoritative root-array schema; application-level semantic validation
+    remains in ``extract_noesis_components``.
     """
     prompt = ChatPromptTemplate.from_template(NOESIS_CANONICAL_PROMPT)
-    chain = prompt | llm_client
+    schema_client = llm_client.bind(
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "noesis_extraction",
+                "strict": True,
+                "schema": NoesisExtraction.model_json_schema(),
+            },
+        }
+    )
+    chain = prompt | schema_client
 
     def extract_once(text: str) -> object:
         response = chain.invoke({"source_text": text})

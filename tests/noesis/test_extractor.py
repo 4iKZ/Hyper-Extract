@@ -11,6 +11,7 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from pydantic import Field
 
 from hyperextract.noesis import (
+    NoesisExtraction,
     create_noesis_extractor,
     extract_noesis_components,
     validate_components,
@@ -126,11 +127,12 @@ class FakeExtractOnce:
         return response
 
 
-class RecordingRawJSONChatModel(BaseChatModel):
-    """Chat model that fails immediately if production uses structured tools."""
+class RecordingJSONSchemaChatModel(BaseChatModel):
+    """Chat model that records the Noesis structured-decoding request."""
 
     responses: list[str]
     calls: list[list[BaseMessage]] = Field(default_factory=list)
+    call_kwargs: list[dict[str, Any]] = Field(default_factory=list)
 
     @property
     def _llm_type(self) -> str:
@@ -144,6 +146,7 @@ class RecordingRawJSONChatModel(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         self.calls.append(messages)
+        self.call_kwargs.append(kwargs)
         response = self.responses[min(len(self.calls) - 1, len(self.responses) - 1)]
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=response))])
 
@@ -151,12 +154,12 @@ class RecordingRawJSONChatModel(BaseChatModel):
         raise AssertionError("Noesis must not use function-calling structured output")
 
 
-class TestProductionRawJSONAdapter:
-    """The production adapter preserves the root array without tool schemas."""
+class TestProductionJSONSchemaAdapter:
+    """The production adapter constrains and preserves the JSON root array."""
 
-    def test_invokes_chat_model_directly_and_parses_root_array(self):
+    def test_requests_strict_root_array_schema_and_parses_response(self):
         expected = [valid_fact()]
-        llm = RecordingRawJSONChatModel(
+        llm = RecordingJSONSchemaChatModel(
             responses=[json.dumps(expected, ensure_ascii=False)]
         )
 
@@ -167,9 +170,15 @@ class TestProductionRawJSONAdapter:
         assert len(llm.calls) == 1
         rendered_prompt = "\n".join(str(message.content) for message in llm.calls[0])
         assert SOURCE_TEXT in rendered_prompt
+        response_format = llm.call_kwargs[0]["response_format"]
+        assert response_format["type"] == "json_schema"
+        assert response_format["json_schema"]["name"] == "noesis_extraction"
+        assert response_format["json_schema"]["strict"] is True
+        assert response_format["json_schema"]["schema"] == NoesisExtraction.model_json_schema()
+        assert response_format["json_schema"]["schema"]["type"] == "array"
 
     def test_invalid_json_is_retried_by_public_extraction_flow(self):
-        llm = RecordingRawJSONChatModel(
+        llm = RecordingJSONSchemaChatModel(
             responses=["not-json", json.dumps([valid_fact()], ensure_ascii=False)]
         )
         extract_once = create_noesis_extractor(llm_client=llm)
@@ -182,7 +191,7 @@ class TestProductionRawJSONAdapter:
         assert outcome.alerts == []
 
     def test_json_object_does_not_get_unwrapped(self):
-        llm = RecordingRawJSONChatModel(
+        llm = RecordingJSONSchemaChatModel(
             responses=[json.dumps({"components": [valid_fact()]}, ensure_ascii=False)]
         )
 
