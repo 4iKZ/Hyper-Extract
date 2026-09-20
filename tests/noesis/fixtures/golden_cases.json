@@ -1,0 +1,120 @@
+[
+  {
+    "input": "昨天妈妈在超市买了苹果。",
+    "expected": [
+      {
+        "utterance_type": "fact",
+        "atoms": [
+          {"pos": 1, "text": "昨天", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null},
+          {"pos": 2, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 4, "resolved": null},
+          {"pos": 3, "text": "在超市", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null},
+          {"pos": 4, "text": "买", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
+          {"pos": 5, "text": "苹果", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}
+        ],
+        "tree": {
+          "predicate": "买",
+          "agent": [{"text": "妈妈", "modifier": [], "implied": false}],
+          "patient": [{"text": "苹果", "modifier": [], "implied": false}],
+          "modifier": ["昨天", "在超市"],
+          "nested": [],
+          "conditional": []
+        }
+      }
+    ]
+  },
+  {
+    "input": "太阳每天从东边升起。",
+    "expected": [
+      {
+        "utterance_type": "hypothesis",
+        "atoms": [
+          {"pos": 1, "text": "太阳", "type": "E", "role": "agent", "target_occ": 3, "resolved": null},
+          {"pos": 2, "text": "每天", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null},
+          {"pos": 3, "text": "升起", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
+          {"pos": 4, "text": "东边", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}
+        ],
+        "tree": {
+          "predicate": "升起",
+          "agent": [{"text": "太阳", "modifier": [], "implied": false}],
+          "patient": [],
+          "modifier": ["每天", "东边"],
+          "nested": [],
+          "conditional": []
+        },
+        "rule_template": {
+          "premise": [
+            {"text": "太阳", "type": "E", "role": "agent"}
+          ],
+          "conclusion": {
+            "predicate": "升起",
+            "agent": ["太阳"],
+            "patient": [],
+            "modifier": ["东边"]
+          },
+          "condition": ["每天"]
+        }
+      }
+    ]
+  },
+  {
+    "input": "妈妈让小明打酱油，否则就揍他。",
+    "expected": [
+      {
+        "utterance_type": "fact",
+        "atoms": [
+          {"pos": 1, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 2, "resolved": null},
+          {"pos": 2, "text": "让", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
+          {"pos": 3, "text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": null},
+          {"pos": 4, "text": "打", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null},
+          {"pos": 5, "text": "酱油", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}
+        ],
+        "tree": {
+          "predicate": "让",
+          "agent": [{"text": "妈妈", "modifier": [], "implied": false}],
+          "patient": [{"text": "小明", "modifier": [], "implied": false}],
+          "modifier": [],
+          "nested": [
+            {
+              "predicate": "打",
+              "agent": [],
+              "patient": [{"text": "酱油", "modifier": [], "implied": false}],
+              "modifier": [],
+              "nested": [],
+              "conditional": []
+            }
+          ],
+          "conditional": []
+        }
+      },
+      {
+        "utterance_type": "hypothesis",
+        "atoms": [
+          {"pos": 1, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 2, "resolved": null},
+          {"pos": 2, "text": "揍", "type": "P", "role": "predicate", "target_occ": null, "resolved": null},
+          {"pos": 3, "text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": true}
+        ],
+        "tree": {
+          "predicate": "揍",
+          "agent": [{"text": "妈妈", "modifier": [], "implied": false}],
+          "patient": [{"text": "小明", "modifier": [], "implied": false}],
+          "modifier": [],
+          "nested": [],
+          "conditional": []
+        },
+        "rule_template": {
+          "premise": [
+            {"text": "小明", "type": "E", "role": "agent"},
+            {"text": "打酱油", "type": "P", "role": "modifier"}
+          ],
+          "conclusion": {
+            "predicate": "揍",
+            "agent": [],
+            "patient": ["小明"],
+            "modifier": []
+          },
+          "condition": ["NOT 打酱油"]
+        }
+      }
+    ]
+  }
+]
