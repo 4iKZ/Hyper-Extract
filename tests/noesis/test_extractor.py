@@ -401,6 +401,13 @@ class TestCanonicalPromptTerminology:
         assert "E、P、G" in NOESIS_CANONICAL_PROMPT
         assert "总称 C 只用于文档和讨论" in NOESIS_CANONICAL_PROMPT
 
+    def test_defines_minimal_entity_granularity_without_dropping_values(self):
+        assert "最小且可独立指称" in NOESIS_CANONICAL_PROMPT
+        assert "完整命题不得作为单个 E" in NOESIS_CANONICAL_PROMPT
+        assert "拆成 P 及其论元或修饰语" in NOESIS_CANONICAL_PROMPT
+        assert "从属命题通过 nested 或 conditional" in NOESIS_CANONICAL_PROMPT
+        assert "时间、数量、地点、标识符、路径、版本号、百分比和标量值仍可作为 E" in NOESIS_CANONICAL_PROMPT
+
     def test_contains_exactly_three_authoritative_examples(self):
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
         assert "以下三个示例" in NOESIS_CANONICAL_PROMPT

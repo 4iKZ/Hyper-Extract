@@ -22,6 +22,7 @@ NOESIS_CANONICAL_PROMPT = """\
 7. pos：component 内从 1 开始连续递增，禁止重复、缺口、0、负数；同一字面重复出现时每次占独立 pos；不同 component 的 pos 各自从 1 重新开始。
 8. text：保持输入中的原始字面，只允许去标点、全半角和空白归一；禁止消歧后缀、禁止同义合并或 canonical name 替换、禁止分配任何 ID；指代消解是唯一允许用明确指代实体替换原字面的例外。
 9. type 只允许 E、P、G 三个值：E 是实元（Enteme），英文全称 Entity Atom，表示外部输入的实体、对象、属性值、时间表达、地点表达等非动作/状态成分；P 是谓元（Prediceme），英文全称 Predicate Atom，表示外部输入的动作或状态谓词；G 是构元（Geneme），英文全称 Genesis Atom，表示系统内部构造出的新概念，一般不由 LLM 输出但保留该合法选项。禁止把总称 C 当作 type。"昨天""每天""东边""在超市"等时间/地点表达为 E；"买""升起""没写""让""打""洗"等动作或状态为 P。
+9.1 E 的粒度必须最小且可独立指称。包含独立施事、动作、状态变化、因果或完整判断的完整命题不得作为单个 E，必须拆成 P 及其论元或修饰语；语义上从属于上级动作的从属命题通过 nested 或 conditional 接入同一闭包。时间、数量、地点、标识符、路径、版本号、百分比和标量值仍可作为 E，不得仅因它们高基数、只出现一次或含有较多字符而省略。
 10. role 只允许四个值：agent（有意图的施动者）、predicate（某个 SPO 框架的核心动作或状态；每个 SPO 框架恰有一个，但同一 component 可以包含从属 SPO 的 predicate）、patient（动作承受者）、modifier（实体属性、动作方式/伴随状态、时间、地点或非句式条件成分）。predicate 的 type 必须为 P；agent/patient 的 type 可以为 E 或 G；modifier 的 type 可以为 E、P 或 G。修饰成分自身构成一个从属事件时，其核心动作仍使用 role=predicate，并通过 target_occ 指向所修饰的上级成分，不得仅因它不是根谓词就降级为 modifier。
 11. resolved 三态规则：普通非指代 atom 为 null；指代对象明确且唯一、已把 text 替换为目标实体时为 true，替换后的 text 必须与被指代实体的规范化 text 完全一致；指代对象不明确时保留原代词 text 并为 false。不得为了让事件看起来完整而猜测不明确的指代。
 

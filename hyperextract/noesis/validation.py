@@ -22,7 +22,6 @@ repairs every component still passes the full strict validation below.
 """
 
 import re
-import unicodedata
 from collections import Counter
 from typing import Any
 
@@ -87,16 +86,20 @@ _REPAIR_MESSAGES = {
 }
 
 _WHITESPACE_RUN = re.compile(r"\s+")
+_ENTITY_CLAUSE_CUE = re.compile(
+    r"(?:已经|正在|仍然|没有|发生|产生|导致|恢复|稳定|增长|下降|上升|触发|执行|完成|保存|关联|进入|缺少|达到|变为|显示|发现|查到|观察)"
+)
+
+# Only presentation punctuation at the *edge* of one extracted literal may be
+# discarded.  Punctuation inside an operational identifier, number, path or
+# version is semantic data (for example ``order-api-7d9c`` and ``1.6 GiB``).
+_BOUNDARY_SENTENCE_PUNCTUATION = "，。！？；、,:!?;\"'“”‘’（）()【】[]《》"
 
 _VALID_ROLES = frozenset({"agent", "patient", "predicate", "modifier"})
 
 
-def _normalize_text(text: str) -> str:
-    """Frozen deterministic normalization (section 5.2).
-
-    Full-width characters fold to half-width, punctuation is removed entirely
-    and whitespace collapses to single spaces.
-    """
+def _fold_width_and_space(text: str) -> str:
+    """Fold full-width ASCII and collapse whitespace without losing symbols."""
     folded: list[str] = []
     for char in text:
         code = ord(char)
@@ -104,10 +107,17 @@ def _normalize_text(text: str) -> str:
             folded.append(chr(code - 0xFEE0))
         else:
             folded.append(char)
-    stripped = "".join(
-        char for char in folded if not unicodedata.category(char).startswith("P")
-    )
-    return _WHITESPACE_RUN.sub(" ", stripped).strip()
+    return _WHITESPACE_RUN.sub(" ", "".join(folded)).strip()
+
+
+def _normalize_text(text: str) -> str:
+    """Normalize a stored literal while preserving semantic punctuation."""
+    return _fold_width_and_space(text).strip(_BOUNDARY_SENTENCE_PUNCTUATION).strip()
+
+
+def _normalize_source_text(text: str) -> str:
+    """Normalize source text for containment without erasing punctuation."""
+    return _fold_width_and_space(text)
 
 
 def _normalize_value(value: Any) -> Any:
@@ -605,6 +615,36 @@ def _drop_alert(component_index: int, failure: _SemanticFailure) -> ExtractionAl
     )
 
 
+def _entity_shape_alert(
+    component_index: int,
+    component: FactComponent | HypothesisComponent,
+) -> ExtractionAlert | None:
+    """Observe proposition-shaped E atoms without changing accepted data.
+
+    This is deliberately a shadow signal.  Length is only a guard around a
+    clause cue and is never sufficient by itself, so long identifiers, time
+    expressions and quantities remain valid Stage 1 atoms.
+    """
+    positions = [
+        atom.pos
+        for atom in component.atoms
+        if atom.type == "E" and len(atom.text) >= 12 and _ENTITY_CLAUSE_CUE.search(atom.text)
+    ]
+    if not positions:
+        return None
+    return ExtractionAlert(
+        stage="hyper_extract",
+        alert_code="atom_shape_suspect",
+        severity="warning",
+        message="entity atom resembles a complete proposition; component kept in shadow mode",
+        details={
+            "component_index": component_index,
+            "atom_positions": positions,
+            "signals": ["entity_contains_clause_cue"],
+        },
+    )
+
+
 def validate_components(raw: object, *, source_text: str) -> ValidationResult:
     """Validate raw extraction output against the authoritative contract.
 
@@ -618,7 +658,7 @@ def validate_components(raw: object, *, source_text: str) -> ValidationResult:
     """
     corrected_raw, repair_alerts, retry_needed = _pre_validate(raw)
     extraction = NoesisExtraction.model_validate(corrected_raw)
-    normalized_source = _normalize_text(source_text)
+    normalized_source = _normalize_source_text(source_text)
 
     staged: list[FactComponent | HypothesisComponent | None] = []
     normalization_failures: list[tuple[int, _SemanticFailure]] = []
@@ -649,4 +689,7 @@ def validate_components(raw: object, *, source_text: str) -> ValidationResult:
             alerts.append(_drop_alert(index, failure))
             continue
         kept.append(component)
+        shape_alert = _entity_shape_alert(index, component)
+        if shape_alert is not None:
+            alerts.append(shape_alert)
     return ValidationResult(components=kept, alerts=alerts, retry_needed=retry_needed)

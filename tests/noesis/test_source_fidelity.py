@@ -1,5 +1,7 @@
 """Source fidelity checks: containment, anaphora antecedent and punctuation."""
 
+import pytest
+
 from hyperextract.noesis import validate_components
 
 
@@ -143,7 +145,7 @@ class TestAnaphoraAntecedent:
 
 
 class TestPunctuationNormalization:
-    """Frozen rule: punctuation is removed, not mapped to ASCII (requirement 5.2)."""
+    """Sentence punctuation is trimmed without corrupting literal identity."""
 
     def test_punctuation_removed_from_stored_text(self):
         component = fact(
@@ -161,7 +163,7 @@ class TestPunctuationNormalization:
         assert result.components[0].atoms[0].text == "妈妈"
         assert result.components[0].tree.agent[0].text == "妈妈"
 
-    def test_text_spanning_removed_punctuation_passes(self):
+    def test_text_spanning_source_punctuation_is_not_treated_as_literal_match(self):
         component = fact(
             atoms=[atom(1, "买苹果", "P", "predicate", None)],
             tree_=tree("买苹果"),
@@ -169,8 +171,46 @@ class TestPunctuationNormalization:
 
         result = validate([component], "买，苹果")
 
+        assert_dropped(result)
+        assert result.alerts[0].details["rule"] == "source_text_violation"
+
+    @pytest.mark.parametrize(
+        "literal",
+        [
+            "order-api-7d9c",
+            "app_settle_service.py",
+            "/api/v1/health",
+            "AIOPS-20260916-049",
+            "1.6 GiB",
+            "0.2%",
+            "user_id",
+            "created_at",
+            "user-center > mysql-users",
+        ],
+    )
+    def test_semantic_internal_punctuation_is_preserved(self, literal):
+        component = fact(
+            atoms=[atom(1, literal, "P", "predicate", None)],
+            tree_=tree(literal),
+        )
+
+        result = validate([component], f"检查结果：{literal}。")
+
         assert len(result.components) == 1
         assert result.alerts == []
+        assert result.components[0].atoms[0].text == literal
+        assert result.components[0].tree.predicate == literal
+
+    def test_punctuation_changing_hallucination_is_rejected(self):
+        component = fact(
+            atoms=[atom(1, "orderapi7d9c", "P", "predicate", None)],
+            tree_=tree("orderapi7d9c"),
+        )
+
+        result = validate([component], "order-api-7d9c")
+
+        assert_dropped(result)
+        assert result.alerts[0].details["rule"] == "source_text_violation"
 
     def test_punctuation_only_atom_text_dropped(self):
         component = fact(
@@ -195,3 +235,51 @@ class TestPunctuationNormalization:
 
         assert len(result.components) == 1
         assert result.components[0].atoms[0].text == "ABC"
+
+
+class TestEntityGranularityObservation:
+    """Suspicious proposition-shaped E atoms are observed, never mutated."""
+
+    def test_proposition_shaped_entity_emits_shadow_alert_and_is_kept(self):
+        clause = "连续观察 40 分钟后内存稳定在 1.6 GiB"
+        component = fact(
+            atoms=[
+                atom(1, "复核结果", "E", "agent", 2),
+                atom(2, "显示", "P", "predicate", None),
+                atom(3, clause, "E", "patient", 2),
+            ],
+            tree_=tree("显示", agent=[arg("复核结果")], patient=[arg(clause)]),
+        )
+
+        result = validate([component], f"复核结果显示，{clause}。")
+
+        assert len(result.components) == 1
+        assert result.components[0].atoms[2].text == clause
+        assert [alert.alert_code for alert in result.alerts] == ["atom_shape_suspect"]
+        assert result.alerts[0].details == {
+            "component_index": 0,
+            "atom_positions": [3],
+            "signals": ["entity_contains_clause_cue"],
+        }
+
+    @pytest.mark.parametrize(
+        "literal",
+        [
+            "2026年09月10日 09:22",
+            "210 万条时间序列",
+            "order-api-production-canary-7d9c",
+        ],
+    )
+    def test_time_quantity_and_long_identifier_do_not_alert_by_length_alone(self, literal):
+        component = fact(
+            atoms=[
+                atom(1, literal, "E", "modifier", 2),
+                atom(2, "记录", "P", "predicate", None),
+            ],
+            tree_=tree("记录", modifier=[literal]),
+        )
+
+        result = validate([component], f"{literal}记录")
+
+        assert len(result.components) == 1
+        assert result.alerts == []
