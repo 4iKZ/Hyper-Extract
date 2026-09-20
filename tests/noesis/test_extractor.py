@@ -462,6 +462,7 @@ class TestCanonicalPromptTerminology:
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
 
     def test_nominalized_subject_and_temporal_event_attachment_are_explicit(self):
+        assert NOESIS_CANONICAL_PROMPT.count("【新增通用约束】") == 4
         assert "不是机械分词结果" in NOESIS_CANONICAL_PROMPT
         assert "复核结果」整体是显示的 E agent" in NOESIS_CANONICAL_PROMPT
         assert "禁止误拆成 P「复核」和 E「结果」" in NOESIS_CANONICAL_PROMPT
@@ -469,5 +470,9 @@ class TestCanonicalPromptTerminology:
         assert "「V + 时长 + 后 + 主句事件」结构" in NOESIS_CANONICAL_PROMPT
         assert "「观察」是 nested 在「稳定」之下" in NOESIS_CANONICAL_PROMPT
         assert "把「观察」与「稳定」作为「显示」之下的同级 nested" in NOESIS_CANONICAL_PROMPT
+        assert "## 已知回归约束（非通用语法规则）" in NOESIS_CANONICAL_PROMPT
+        assert "【已知回归约束】" in NOESIS_CANONICAL_PROMPT
+        assert "不把其中出现的词固定为全局 E/P 类型" in NOESIS_CANONICAL_PROMPT
+        assert "其他输入仍按第 4–10 条和实际语境判断" in NOESIS_CANONICAL_PROMPT
         assert "### 示例 4" not in NOESIS_CANONICAL_PROMPT
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
