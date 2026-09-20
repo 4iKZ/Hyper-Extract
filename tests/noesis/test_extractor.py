@@ -450,13 +450,24 @@ class TestCanonicalPromptTerminology:
         assert "不得再额外输出包含这些并列动作的聚合 component" in NOESIS_CANONICAL_PROMPT
 
     def test_clause_must_not_be_a_single_entity_atom(self):
-        assert "每个 atom 的 text 必须是单一概元" in NOESIS_CANONICAL_PROMPT
-        assert "仍含动作或状态谓词的小句" in NOESIS_CANONICAL_PROMPT
+        assert "每个 atom 的 text 必须是一个语义概元" in NOESIS_CANONICAL_PROMPT
+        assert "仍含独立动作或状态谓词的小句" in NOESIS_CANONICAL_PROMPT
         assert "内容从句必须写成 tree.nested" in NOESIS_CANONICAL_PROMPT
         assert "显示、说、确认、发现、建议、喜欢" in NOESIS_CANONICAL_PROMPT
         assert "昨天晚上" in NOESIS_CANONICAL_PROMPT
         assert "40 分钟后" in NOESIS_CANONICAL_PROMPT
         assert "连续观察 40 分钟后" in NOESIS_CANONICAL_PROMPT
         assert "禁止把整句内容当一个 E" in NOESIS_CANONICAL_PROMPT
+        assert "### 示例 4" not in NOESIS_CANONICAL_PROMPT
+        assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
+
+    def test_nominalized_subject_and_temporal_event_attachment_are_explicit(self):
+        assert "不是机械分词结果" in NOESIS_CANONICAL_PROMPT
+        assert "复核结果」整体是显示的 E agent" in NOESIS_CANONICAL_PROMPT
+        assert "禁止误拆成 P「复核」和 E「结果」" in NOESIS_CANONICAL_PROMPT
+        assert "当前句子是否用该片段独立断言了一个动作/状态 SPO" in NOESIS_CANONICAL_PROMPT
+        assert "「V + 时长 + 后 + 主句事件」结构" in NOESIS_CANONICAL_PROMPT
+        assert "「观察」是 nested 在「稳定」之下" in NOESIS_CANONICAL_PROMPT
+        assert "把「观察」与「稳定」作为「显示」之下的同级 nested" in NOESIS_CANONICAL_PROMPT
         assert "### 示例 4" not in NOESIS_CANONICAL_PROMPT
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
