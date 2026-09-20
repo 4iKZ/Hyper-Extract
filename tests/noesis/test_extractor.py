@@ -428,3 +428,15 @@ class TestCanonicalPromptTerminology:
         assert "共享主语或同时发生本身不构成从属关系" in NOESIS_CANONICAL_PROMPT
         assert "论元、修饰事件或条件事件" in NOESIS_CANONICAL_PROMPT
         assert "不得再额外输出包含这些并列动作的聚合 component" in NOESIS_CANONICAL_PROMPT
+
+    def test_clause_must_not_be_a_single_entity_atom(self):
+        assert "每个 atom 的 text 必须是单一概元" in NOESIS_CANONICAL_PROMPT
+        assert "仍含动作或状态谓词的小句" in NOESIS_CANONICAL_PROMPT
+        assert "内容从句必须写成 tree.nested" in NOESIS_CANONICAL_PROMPT
+        assert "显示、说、确认、发现、建议、喜欢" in NOESIS_CANONICAL_PROMPT
+        assert "昨天晚上" in NOESIS_CANONICAL_PROMPT
+        assert "40 分钟后" in NOESIS_CANONICAL_PROMPT
+        assert "连续观察 40 分钟后" in NOESIS_CANONICAL_PROMPT
+        assert "禁止把整句内容当一个 E" in NOESIS_CANONICAL_PROMPT
+        assert "### 示例 4" not in NOESIS_CANONICAL_PROMPT
+        assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3

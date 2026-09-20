@@ -15,14 +15,14 @@ NOESIS_CANONICAL_PROMPT = """\
 
 ## Component 拆分
 4. 每个 component 是一个独立事件闭包：所有概元通过 target_occ 链最终汇聚到一个根谓元。互不关联、互不从属的事件必须拆成多个 component；即使多个动作共享同一主语、时间或语境，只要这些谓词彼此并列且互不从属，也必须拆成多个 component，不能把并列谓词放入 tree.nested。共享主语或同时发生本身不构成从属关系。不同 component 不共享概元，不跨 component 引用 pos；共享的主语、时间或其他成分必须在各 component 中分别输出各自概元。完成拆分后，不得再额外输出包含这些并列动作的聚合 component，也不得重复输出同一个事件闭包。
-5. tree.nested 只用于一个动作在语义上充当另一个动作的论元、修饰事件或条件事件，即该动作必须真正依赖或从属于上级动作；条件分支通过 tree.conditional 表达。仅由逗号连接、共享施动者或同时进行的平行动作不是 nested，必须按第 4 条拆分。
+5. tree.nested 只用于一个动作在语义上充当另一个动作的论元、修饰事件或条件事件，即该动作必须真正依赖或从属于上级动作；条件分支通过 tree.conditional 表达。仅由逗号连接、共享施动者或同时进行的平行动作不是 nested，必须按第 4 条拆分。"显示、说、确认、发现、建议、喜欢"等以整句为内容的谓词，其内容从句必须写成 tree.nested（各自有独立的 P），不得把整句压缩成一个 E 论元。
 
 ## Atom 规则
 6. 每个概元必须完整输出六个字段：pos、text、type、role、target_occ、resolved，不允许省略或增加字段。概元（Cogneme，代号 C）只是总称；总称 C 只用于文档和讨论，不作为 type 值存储。
 7. pos：component 内从 1 开始连续递增，禁止重复、缺口、0、负数；同一字面重复出现时每次占独立 pos；不同 component 的 pos 各自从 1 重新开始。
-8. text：保持输入中的原始字面，只允许去标点、全半角和空白归一；禁止消歧后缀、禁止同义合并或 canonical name 替换、禁止分配任何 ID；指代消解是唯一允许用明确指代实体替换原字面的例外。
-9. type 只允许 E、P、G 三个值：E 是实元（Enteme），英文全称 Entity Atom，表示外部输入的实体、对象、属性值、时间表达、地点表达等非动作/状态成分；P 是谓元（Prediceme），英文全称 Predicate Atom，表示外部输入的动作或状态谓词；G 是构元（Geneme），英文全称 Genesis Atom，表示系统内部构造出的新概念，一般不由 LLM 输出但保留该合法选项。禁止把总称 C 当作 type。"昨天""每天""东边""在超市"等时间/地点表达为 E；"买""升起""没写""让""打""洗"等动作或状态为 P。
-10. role 只允许四个值：agent（有意图的施动者）、predicate（某个 SPO 框架的核心动作或状态；每个 SPO 框架恰有一个，但同一 component 可以包含从属 SPO 的 predicate）、patient（动作承受者）、modifier（实体属性、动作方式/伴随状态、时间、地点或非句式条件成分）。predicate 的 type 必须为 P；agent/patient 的 type 可以为 E 或 G；modifier 的 type 可以为 E、P 或 G。修饰成分自身构成一个从属事件时，其核心动作仍使用 role=predicate，并通过 target_occ 指向所修饰的上级成分，不得仅因它不是根谓词就降级为 modifier。
+8. text：保持输入中的原始字面，只允许去标点、全半角和空白归一；禁止消歧后缀、禁止同义合并或 canonical name 替换、禁止分配任何 ID；指代消解是唯一允许用明确指代实体替换原字面的例外。每个 atom 的 text 必须是单一概元。禁止把仍含动作或状态谓词的小句整段写入一个 E 的 text（无论 role 是 agent、patient 还是 modifier）。
+9. type 只允许 E、P、G 三个值：E 是实元（Enteme），英文全称 Entity Atom，表示外部输入的实体、对象、属性值、时间表达、地点表达等非动作/状态成分；P 是谓元（Prediceme），英文全称 Predicate Atom，表示外部输入的动作或状态谓词；G 是构元（Geneme），英文全称 Genesis Atom，表示系统内部构造出的新概念，一般不由 LLM 输出但保留该合法选项。禁止把总称 C 当作 type。"昨天""每天""东边""在超市""昨天晚上""40 分钟后"等不含谓词的时间/地点表达为 E，且保持为一个 modifier 概元、不要拆开无谓词的时间词；"买""升起""没写""让""打""洗""显示""稳定""观察""喜欢""吃""高""是"等动作或状态为 P。判定标准：字面里还看得到动作/状态谓词，就必须是 P（根或 nested），不得标成 E。
+10. role 只允许四个值：agent（有意图的施动者）、predicate（某个 SPO 框架的核心动作或状态；每个 SPO 框架恰有一个，但同一 component 可以包含从属 SPO 的 predicate）、patient（动作承受者）、modifier（实体属性、动作方式/伴随状态、时间、地点或非句式条件成分）。predicate 的 type 必须为 P；agent/patient 的 type 可以为 E 或 G；modifier 的 type 可以为 E、P 或 G。修饰成分自身构成一个从属事件时，其核心动作仍使用 role=predicate，并通过 target_occ 指向所修饰的上级成分，不得仅因它不是根谓词就降级为 modifier。因此「连续观察 40 分钟后」不是一个 E modifier：其中「观察」是从属 P，「连续」与「40 分钟后」才是不含谓词的 E modifier。
 11. resolved 三态规则：普通非指代 atom 为 null；指代对象明确且唯一、已把 text 替换为目标实体时为 true，替换后的 text 必须与被指代实体的规范化 text 完全一致；指代对象不明确时保留原代词 text 并为 false。不得为了让事件看起来完整而猜测不明确的指代。
 
 ## target_occ 与事件闭包
@@ -45,6 +45,7 @@ NOESIS_CANONICAL_PROMPT = """\
 22. 不输出 event_time、confidence、support、counter、RDF 三元组、任何 ID 或数据库字段。
 23. 不做同义合并、不加消歧后缀、不判断规律真假。
 24. 如果无法确定某个 component 的 atoms、tree 或 target_occ，则不要输出该 component。
+25. 禁止把整句内容当一个 E。错误：把「连续观察 40 分钟后内存稳定在 16 GiB」写成 type=E 的 patient。正确：根 P 为「显示」，其内容从句进入 nested，内层 P 为「稳定」（agent「内存」，地点/数值「16 GiB」或「在 16 GiB」）；「观察」另为从属 P，「连续」「40 分钟后」为 E modifier。这不是第四个权威示例，只约束粒度。
 
 ## 权威示例
 以下三个示例逐字段遵守上述规则，不得新增其他示例风格：

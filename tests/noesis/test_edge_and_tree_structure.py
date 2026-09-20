@@ -452,3 +452,68 @@ class TestTreeStructuralAccounting:
 
         assert len(result.components) == 1
         assert result.alerts == []
+
+    def test_content_clause_nested_under_show_predicate_passes(self):
+        """A complement of 显示 is nested P/E atoms, not one E patient."""
+        source = "复核结果显示，连续观察 40 分钟后内存稳定在 16 GiB。"
+        component = fact(
+            atoms=[
+                atom(1, "复核结果", "E", "agent", 2),
+                atom(2, "显示", "P", "predicate", None),
+                atom(3, "连续", "E", "modifier", 4),
+                atom(4, "观察", "P", "predicate", 7),
+                atom(5, "40 分钟后", "E", "modifier", 4),
+                atom(6, "内存", "E", "agent", 7),
+                atom(7, "稳定", "P", "predicate", 2),
+                atom(8, "在 16 GiB", "E", "modifier", 7),
+            ],
+            tree_=tree(
+                "显示",
+                agent=[arg("复核结果")],
+                nested=[
+                    tree(
+                        "稳定",
+                        agent=[arg("内存")],
+                        modifier=["在 16 GiB"],
+                        nested=[
+                            tree("观察", modifier=["连续", "40 分钟后"]),
+                        ],
+                    )
+                ],
+            ),
+        )
+
+        result = validate([component], source)
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+        dumped = result.components[0].model_dump()
+        texts = [item["text"] for item in dumped["atoms"]]
+        assert "连续观察 40 分钟后内存稳定在 16 GiB" not in texts
+        assert dumped["tree"]["predicate"] == "显示"
+        assert dumped["tree"]["nested"][0]["predicate"] == "稳定"
+        assert dumped["tree"]["nested"][0]["nested"][0]["predicate"] == "观察"
+
+    def test_glued_clause_as_single_entity_patient_still_validates(self):
+        """The schema still accepts a glued E patient; splitting is prompt-only."""
+        source = "复核结果显示，连续观察 40 分钟后内存稳定在 16 GiB。"
+        blob = "连续观察 40 分钟后内存稳定在 16 GiB"
+        component = fact(
+            atoms=[
+                atom(1, "复核结果", "E", "agent", 2),
+                atom(2, "显示", "P", "predicate", None),
+                atom(3, blob, "E", "patient", 2),
+            ],
+            tree_=tree(
+                "显示",
+                agent=[arg("复核结果")],
+                patient=[arg(blob)],
+            ),
+        )
+
+        result = validate([component], source)
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+        assert result.components[0].atoms[2].text == blob
+        assert result.components[0].atoms[2].type == "E"
