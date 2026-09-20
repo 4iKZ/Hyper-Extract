@@ -191,6 +191,26 @@ class TestProductionRawJSONAdapter:
 
         assert raw == {"components": [valid_fact()]}
 
+    def test_markdown_json_fence_is_stripped(self):
+        expected = [valid_fact()]
+        body = json.dumps(expected, ensure_ascii=False)
+        llm = RecordingRawJSONChatModel(responses=[f"```json\n{body}\n```"])
+
+        extract_once = create_noesis_extractor(llm_client=llm)
+        raw = extract_once(SOURCE_TEXT)
+
+        assert raw == expected
+
+    def test_markdown_fence_does_not_unwrap_json_object(self):
+        wrapped = {"components": [valid_fact()]}
+        body = json.dumps(wrapped, ensure_ascii=False)
+        llm = RecordingRawJSONChatModel(responses=[f"```json\n{body}\n```"])
+
+        extract_once = create_noesis_extractor(llm_client=llm)
+        raw = extract_once(SOURCE_TEXT)
+
+        assert raw == wrapped
+
 
 class TestExtractorRetry:
     """Retry and alert behavior for schema/call-level failures (requirement 15.5)."""

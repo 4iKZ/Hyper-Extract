@@ -13,6 +13,24 @@ from .prompt import NOESIS_CANONICAL_PROMPT
 from .validation import validate_components
 
 
+def _loads_llm_json(content: str) -> object:
+    """Parse LLM text as JSON, ignoring a wrapping markdown code fence.
+
+    Chat models often wrap the root array in a markdown json fence even when
+    the prompt forbids it. Only the outer fence is stripped; broken JSON is
+    still a parse error so the existing one-retry still runs.
+    """
+    text = content.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return json.loads(text)
+
+
 def create_noesis_extractor(
     *,
     llm_client: BaseChatModel,
@@ -32,7 +50,7 @@ def create_noesis_extractor(
         content = response.text if isinstance(response, BaseMessage) else response
         if not isinstance(content, str):
             raise TypeError("Noesis LLM response content must be text")
-        return json.loads(content)
+        return _loads_llm_json(content)
 
     return extract_once
 
