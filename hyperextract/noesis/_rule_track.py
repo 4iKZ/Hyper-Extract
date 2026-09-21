@@ -20,7 +20,7 @@ def _source_backed(text: str, normalized_source: str) -> bool:
     ``NOT`` is the one sanctioned synthetic operator in the authoritative
     examples.  The expression following it must still occur in the source.
     """
-    literal = _LOGICAL_PREFIX.sub("", text).strip()
+    literal = re.sub(r"\s+", "", _LOGICAL_PREFIX.sub("", text))
     return bool(literal) and literal in normalized_source
 
 

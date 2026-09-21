@@ -212,6 +212,21 @@ class TestPunctuationNormalization:
         assert_dropped(result)
         assert result.alerts[0].details["rule"] == "source_text_violation"
 
+    def test_containment_allows_whitespace_normalization(self):
+        component = fact(
+            atoms=[
+                atom(1, "40分钟", "E", "modifier", 2),
+                atom(2, "观察", "P", "predicate", None),
+            ],
+            tree_=tree("观察", modifier=["40分钟"]),
+        )
+
+        result = validate([component], "观察 40 分钟")
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+        assert result.components[0].atoms[0].text == "40分钟"
+
     def test_punctuation_only_atom_text_dropped(self):
         component = fact(
             atoms=[atom(1, "。", "P", "predicate", None)],

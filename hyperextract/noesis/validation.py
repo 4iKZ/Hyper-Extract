@@ -116,8 +116,12 @@ def _normalize_text(text: str) -> str:
 
 
 def _normalize_source_text(text: str) -> str:
-    """Normalize source text for containment without erasing punctuation."""
-    return _fold_width_and_space(text)
+    """Build the containment key without erasing semantic punctuation.
+
+    The frozen contract permits whitespace normalization, so ``40 分钟`` and
+    ``40分钟`` must ground the same atom.  Punctuation remains significant.
+    """
+    return _WHITESPACE_RUN.sub("", _fold_width_and_space(text))
 
 
 def _normalize_value(value: Any) -> Any:
@@ -573,7 +577,7 @@ def _check_atom_type_role(atoms: list[NoesisAtom]) -> None:
 def _check_source_containment(atoms: list[NoesisAtom], normalized_source: str) -> None:
     """Every atom text must appear in the normalized source (section 5.2)."""
     for index, atom in enumerate(atoms):
-        if atom.text not in normalized_source:
+        if _WHITESPACE_RUN.sub("", atom.text) not in normalized_source:
             raise _SemanticFailure("source_text_violation", f"atoms[{index}].text")
 
 
