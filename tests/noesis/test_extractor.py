@@ -408,6 +408,10 @@ class TestCanonicalPromptTerminology:
         assert "从属命题通过 nested 或 conditional" in NOESIS_CANONICAL_PROMPT
         assert "时间、数量、地点、标识符、路径、版本号、百分比和标量值仍可作为 E" in NOESIS_CANONICAL_PROMPT
 
+    def test_concrete_observation_does_not_require_an_explicit_time_word(self):
+        assert "不得仅因缺少显式时间词而过滤" in NOESIS_CANONICAL_PROMPT
+        assert "完成态或当前状态的一次具体观察" in NOESIS_CANONICAL_PROMPT
+
     def test_contains_exactly_three_authoritative_examples(self):
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
         assert "以下三个示例" in NOESIS_CANONICAL_PROMPT
