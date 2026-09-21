@@ -1,8 +1,8 @@
 """Canonical extraction prompt for Noesis Stage 1 event closure components.
 
 The prompt is rendered through ``ChatPromptTemplate.from_template``: every
-literal JSON brace is doubled and ``{source_text}`` is the only template
-variable.
+literal JSON brace is doubled. ``{source_text}`` and ``{retry_feedback}`` are
+the only template variables.
 """
 
 NOESIS_CANONICAL_PROMPT = """\
@@ -171,6 +171,9 @@ NOESIS_CANONICAL_PROMPT = """\
     }}
   }}
 ]
+
+## 本次纠错反馈
+{retry_feedback}
 
 ## 待抽取输入
 {source_text}

@@ -252,10 +252,10 @@ class TestPunctuationNormalization:
         assert result.components[0].atoms[0].text == "ABC"
 
 
-class TestEntityGranularityObservation:
-    """Suspicious proposition-shaped E atoms are observed, never mutated."""
+class TestEntityGranularityGate:
+    """Proposition-shaped E atoms reject their component and request one retry."""
 
-    def test_proposition_shaped_entity_emits_shadow_alert_and_is_kept(self):
+    def test_proposition_shaped_entity_is_dropped_and_requests_retry(self):
         clause = "连续观察 40 分钟后内存稳定在 1.6 GiB"
         component = fact(
             atoms=[
@@ -268,11 +268,12 @@ class TestEntityGranularityObservation:
 
         result = validate([component], f"复核结果显示，{clause}。")
 
-        assert len(result.components) == 1
-        assert result.components[0].atoms[2].text == clause
-        assert [alert.alert_code for alert in result.alerts] == ["atom_shape_suspect"]
+        assert result.components == []
+        assert result.retry_needed is True
+        assert [alert.alert_code for alert in result.alerts] == ["invalid_component_dropped"]
         assert result.alerts[0].details == {
             "component_index": 0,
+            "rule": "entity_clause_shape",
             "atom_positions": [3],
             "signals": ["entity_contains_clause_cue"],
         }
@@ -283,6 +284,10 @@ class TestEntityGranularityObservation:
             "2026年09月10日 09:22",
             "210 万条时间序列",
             "order-api-production-canary-7d9c",
+            "kubectl describe pod order-api-7c8d9f6b5-x2vqn",
+            "harbor.internal/payment-gateway:v1.88.3",
+            "java.util.concurrent.TimeoutException",
+            "/api/order/list?page=1",
         ],
     )
     def test_time_quantity_and_long_identifier_do_not_alert_by_length_alone(self, literal):

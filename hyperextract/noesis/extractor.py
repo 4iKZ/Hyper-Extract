@@ -16,7 +16,7 @@ from .validation import validate_components
 def create_noesis_extractor(
     *,
     llm_client: BaseChatModel,
-) -> Callable[[str], object]:
+) -> Callable[..., object]:
     """Build the production strict-JSON-Schema call for Noesis closures.
 
     Noesis deliberately bypasses ``AutoModel.function_calling`` because tool
@@ -38,8 +38,13 @@ def create_noesis_extractor(
     )
     chain = prompt | schema_client
 
-    def extract_once(text: str) -> object:
-        response = chain.invoke({"source_text": text})
+    def extract_once(text: str, *, retry_feedback: str = "") -> object:
+        response = chain.invoke(
+            {
+                "source_text": text,
+                "retry_feedback": retry_feedback or "无；这是首次抽取。",
+            }
+        )
         content = response.text if isinstance(response, BaseMessage) else response
         if not isinstance(content, str):
             raise TypeError("Noesis LLM response content must be text")
@@ -51,7 +56,7 @@ def create_noesis_extractor(
 def extract_noesis_components(
     text: str,
     *,
-    extract_once: Callable[[str], object],
+    extract_once: Callable[..., object],
 ) -> ExtractionOutcome:
     """Extract event closure components with at most one retry.
 
@@ -63,9 +68,13 @@ def extract_noesis_components(
     schema layer counts as an extraction failure.
     """
     last_error: Exception | None = None
+    retry_feedback = ""
     for attempt in (1, 2):
         try:
-            raw = extract_once(text)
+            if retry_feedback:
+                raw = extract_once(text, retry_feedback=retry_feedback)
+            else:
+                raw = extract_once(text)
         except Exception as error:
             last_error = error
             continue
@@ -75,6 +84,7 @@ def extract_noesis_components(
             last_error = error
             continue
         if result.retry_needed and attempt == 1:
+            retry_feedback = _build_entity_retry_feedback(raw, result.alerts)
             last_error = None
             continue
         return ExtractionOutcome(
@@ -90,3 +100,46 @@ def extract_noesis_components(
         details={"error_type": type(last_error).__name__},
     )
     return ExtractionOutcome(components=[], alerts=[alert], attempts=2)
+
+
+def _build_entity_retry_feedback(
+    raw: object,
+    alerts: list[ExtractionAlert],
+) -> str:
+    """Build transient, targeted feedback for proposition-shaped entities."""
+    if not isinstance(raw, list):
+        return ""
+    issues: list[str] = []
+    for alert in alerts:
+        details = alert.details or {}
+        if details.get("rule") != "entity_clause_shape":
+            continue
+        component_index = details.get("component_index")
+        positions = details.get("atom_positions")
+        if not isinstance(component_index, int) or not isinstance(positions, list):
+            continue
+        if component_index < 0 or component_index >= len(raw):
+            continue
+        component = raw[component_index]
+        atoms = component.get("atoms") if isinstance(component, dict) else None
+        if not isinstance(atoms, list):
+            continue
+        for position in positions:
+            text = next(
+                (
+                    atom.get("text")
+                    for atom in atoms
+                    if isinstance(atom, dict) and atom.get("pos") == position
+                ),
+                None,
+            )
+            if isinstance(text, str):
+                issues.append(f'component {component_index}, pos {position}: "{text}"')
+    if not issues:
+        return ""
+    return (
+        "上次输出把完整动作或状态命题错误地放进了 E：\n- "
+        + "\n- ".join(issues)
+        + "\n请将其拆为 P、论元和 modifier，并重建 atoms、tree 与 target_occ；"
+        "如果无法确定正确结构，就省略对应 component。"
+    )
