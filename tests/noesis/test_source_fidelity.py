@@ -252,31 +252,8 @@ class TestPunctuationNormalization:
         assert result.components[0].atoms[0].text == "ABC"
 
 
-class TestEntityGranularityGate:
-    """Proposition-shaped E atoms reject their component and request one retry."""
-
-    def test_proposition_shaped_entity_is_dropped_and_requests_retry(self):
-        clause = "连续观察 40 分钟后内存稳定在 1.6 GiB"
-        component = fact(
-            atoms=[
-                atom(1, "复核结果", "E", "agent", 2),
-                atom(2, "显示", "P", "predicate", None),
-                atom(3, clause, "E", "patient", 2),
-            ],
-            tree_=tree("显示", agent=[arg("复核结果")], patient=[arg(clause)]),
-        )
-
-        result = validate([component], f"复核结果显示，{clause}。")
-
-        assert result.components == []
-        assert result.retry_needed is True
-        assert [alert.alert_code for alert in result.alerts] == ["invalid_component_dropped"]
-        assert result.alerts[0].details == {
-            "component_index": 0,
-            "rule": "entity_clause_shape",
-            "atom_positions": [3],
-            "signals": ["entity_contains_clause_cue"],
-        }
+class TestEntityLiteralContainment:
+    """Long literal E atoms remain subject to source containment."""
 
     @pytest.mark.parametrize(
         "literal",

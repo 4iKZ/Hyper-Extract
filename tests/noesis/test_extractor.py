@@ -127,7 +127,7 @@ class FakeExtractOnce:
         return response
 
 
-def dirty_entity_fact(clause="两个 upstream 节点里有一个是 down"):
+def entity_fact(clause):
     return {
         "utterance_type": "fact",
         "atoms": [
@@ -357,73 +357,32 @@ class TestExtractorRetry:
         assert outcome.components[0].model_dump() == valid_fact()
         assert outcome.alerts == []
 
-    def test_dirty_entity_retries_with_feedback_then_accepts_correction(self):
-        source = "监控显示两个 upstream 节点里有一个是 down。昨天妈妈在超市买了苹果。"
-        fake = FakeExtractOnce([[dirty_entity_fact()], [valid_fact()]])
+    def test_error_literal_entity_is_kept_without_retry(self):
+        literal = "Failed to parse multiline timeout"
+        source = f"监控显示 {literal}。"
+        component = entity_fact(literal)
+        fake = FakeExtractOnce([[component]])
 
         outcome = extract_noesis_components(source, extract_once=fake)
 
-        assert outcome.attempts == 2
-        assert len(outcome.components) == 1
-        assert outcome.components[0].model_dump() == valid_fact()
+        assert len(fake.calls) == 1
+        assert outcome.attempts == 1
+        assert [item.model_dump() for item in outcome.components] == [component]
         assert outcome.alerts == []
-        assert fake.calls[0] == (source, {})
-        feedback = fake.calls[1][1]["retry_feedback"]
-        assert "component 0" in feedback
-        assert "pos 3" in feedback
-        assert "两个 upstream 节点里有一个是 down" in feedback
-        assert "拆为 P" in feedback
 
-    def test_dirty_entity_twice_is_dropped_without_leaking_text_in_alert(self):
-        source = "监控显示两个 upstream 节点里有一个是 down。"
-        fake = FakeExtractOnce([[dirty_entity_fact()], [dirty_entity_fact()]])
+    def test_valid_literal_does_not_resample_other_components(self):
+        literal = "Failed to parse multiline timeout"
+        source = f"监控显示 {literal}。昨天妈妈在超市买了苹果。"
+        components = [entity_fact(literal), valid_fact()]
+        fake = FakeExtractOnce([components])
 
         outcome = extract_noesis_components(source, extract_once=fake)
 
-        assert outcome.attempts == 2
-        assert outcome.components == []
-        assert len(outcome.alerts) == 1
-        alert = outcome.alerts[0]
-        assert alert.alert_code == "invalid_component_dropped"
-        assert alert.details == {
-            "component_index": 0,
-            "rule": "entity_clause_shape",
-            "atom_positions": [3],
-            "signals": ["entity_contains_clause_cue"],
-        }
-        assert "upstream" not in json.dumps(alert.details, ensure_ascii=False)
+        assert outcome.attempts == 1
+        assert len(fake.calls) == 1
+        assert [item.model_dump() for item in outcome.components] == components
+        assert outcome.alerts == []
 
-    def test_second_attempt_keeps_clean_sibling_and_drops_dirty_component(self):
-        source = "监控显示两个 upstream 节点里有一个是 down。昨天妈妈在超市买了苹果。"
-        fake = FakeExtractOnce(
-            [[dirty_entity_fact()], [dirty_entity_fact(), valid_fact()]]
-        )
-
-        outcome = extract_noesis_components(source, extract_once=fake)
-
-        assert outcome.attempts == 2
-        assert [component.model_dump() for component in outcome.components] == [valid_fact()]
-        assert len(outcome.alerts) == 1
-        assert outcome.alerts[0].details["component_index"] == 0
-        assert outcome.alerts[0].details["rule"] == "entity_clause_shape"
-
-    @pytest.mark.parametrize(
-        "clause",
-        [
-            "3 个 worker 的 CPU request 已用 78%",
-            "接口 /api/inventory/deduct 报 500",
-            "1 node(s) had untolerated taint",
-        ],
-    )
-    def test_chinese_and_english_proposition_entities_trigger_retry(self, clause):
-        source = f"监控显示{clause}。"
-        fake = FakeExtractOnce([[dirty_entity_fact(clause)], []])
-
-        outcome = extract_noesis_components(source, extract_once=fake)
-
-        assert outcome.attempts == 2
-        assert len(fake.calls) == 2
-        assert "retry_feedback" in fake.calls[1][1]
 
     def test_validator_internal_error_propagates(self, monkeypatch):
         """Only call-level and schema-level failures retry; a validator

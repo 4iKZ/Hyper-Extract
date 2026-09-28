@@ -61,7 +61,6 @@ _RULE_MESSAGES = {
     "tree_predicate_no_atom": "nested/conditional predicate has no matching subordinate predicate atom",
     "tree_predicate_unaccounted": "a subordinate predicate atom is missing from nested/conditional",
     "implied_text_not_entity": "implied argument text is not an entity atom text (section 7.1)",
-    "entity_clause_shape": "entity atom resembles a complete proposition",
     "tree_new_word": "tree introduces text missing from atoms",
     "rule_conclusion_mismatch": "rule_template conclusion does not project the event closure",
     "rule_projection_mismatch": "rule_template role projection does not match the event closure",
@@ -87,13 +86,6 @@ _REPAIR_MESSAGES = {
 }
 
 _WHITESPACE_RUN = re.compile(r"\s+")
-_ENTITY_CLAUSE_CUE = re.compile(
-    r"(?:有一个是|已经|正在|仍然|没有|发生|产生|导致|恢复|稳定|增长|下降|上升|触发|执行|完成|保存|关联|进入|缺少|达到|变为|显示|发现|查到|观察|已用|报|缺|处于|变成|卡在|占用|返回|耗时|积压|回收)"
-)
-_ENTITY_ENGLISH_CLAUSE_CUE = re.compile(
-    r"\b(?:is|are|was|were|has|have|had|failed|succeeded|detected|available|unavailable|down)\b|\btimed\s+out\b",
-    re.IGNORECASE,
-)
 
 # Only presentation punctuation at the *edge* of one extracted literal may be
 # discarded.  Punctuation inside an operational identifier, number, path or
@@ -624,48 +616,6 @@ def _drop_alert(component_index: int, failure: _SemanticFailure) -> ExtractionAl
     )
 
 
-def _entity_shape_alert(
-    component_index: int,
-    component: FactComponent | HypothesisComponent,
-) -> ExtractionAlert | None:
-    """Identify proposition-shaped E atoms without guessing a replacement.
-
-    Length is only a guard around semantic signals and is never sufficient by
-    itself.  The caller drops the complete component so deterministic
-    validation never invents an event structure.
-    """
-    predicate_texts = {
-        atom.text for atom in component.atoms if atom.role == "predicate" and atom.text
-    }
-    positions: list[int] = []
-    signals: set[str] = set()
-    for atom in component.atoms:
-        if atom.type != "E" or len(atom.text) < 12:
-            continue
-        atom_signals: set[str] = set()
-        if _ENTITY_CLAUSE_CUE.search(atom.text) or _ENTITY_ENGLISH_CLAUSE_CUE.search(atom.text):
-            atom_signals.add("entity_contains_clause_cue")
-        if any(predicate_text in atom.text for predicate_text in predicate_texts):
-            atom_signals.add("entity_contains_component_predicate")
-        if atom_signals:
-            positions.append(atom.pos)
-            signals.update(atom_signals)
-    if not positions:
-        return None
-    return ExtractionAlert(
-        stage="hyper_extract",
-        alert_code="invalid_component_dropped",
-        severity="warning",
-        message=_RULE_MESSAGES["entity_clause_shape"],
-        details={
-            "component_index": component_index,
-            "rule": "entity_clause_shape",
-            "atom_positions": positions,
-            "signals": sorted(signals),
-        },
-    )
-
-
 def validate_components(raw: object, *, source_text: str) -> ValidationResult:
     """Validate raw extraction output against the authoritative contract.
 
@@ -708,11 +658,6 @@ def validate_components(raw: object, *, source_text: str) -> ValidationResult:
             _check_component(component, normalized_source, text_counts)
         except _SemanticFailure as failure:
             alerts.append(_drop_alert(index, failure))
-            continue
-        shape_alert = _entity_shape_alert(index, component)
-        if shape_alert is not None:
-            alerts.append(shape_alert)
-            retry_needed = True
             continue
         kept.append(component)
     return ValidationResult(components=kept, alerts=alerts, retry_needed=retry_needed)
