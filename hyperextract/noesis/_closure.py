@@ -19,7 +19,9 @@ def _check_pos_sequence(atoms: list[NoesisAtom]) -> None:
 
 
 def _find_unique_root(atoms: list[NoesisAtom]) -> NoesisAtom:
-    roots = [atom for atom in atoms if atom.role == "predicate" and atom.target_occ is None]
+    roots = [
+        atom for atom in atoms if atom.role == "predicate" and atom.target_occ is None
+    ]
     if len(roots) != 1:
         raise _SemanticFailure("unique_root", "atoms")
     return roots[0]

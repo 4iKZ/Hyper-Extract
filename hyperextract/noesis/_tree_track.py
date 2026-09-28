@@ -59,7 +59,9 @@ def _check_tree_structure(
             arg_field = f"{field}.{role}[{position}]"
             if argument.implied:
                 if argument.text not in entity_texts:
-                    raise _SemanticFailure("implied_text_not_entity", f"{arg_field}.text")
+                    raise _SemanticFailure(
+                        "implied_text_not_entity", f"{arg_field}.text"
+                    )
                 for index, modifier in enumerate(argument.modifier):
                     if modifier not in atom_texts:
                         raise _SemanticFailure(

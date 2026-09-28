@@ -240,7 +240,9 @@ def _collect_subordinate_tree_predicates(tree_node: Any, acc: set) -> None:
             _collect_subordinate_tree_predicates(branch.get("event"), acc)
 
 
-def _arbitrate_root_predicate(component: dict, index: int, alerts: list) -> tuple[dict | None, bool]:
+def _arbitrate_root_predicate(
+    component: dict, index: int, alerts: list
+) -> tuple[dict | None, bool]:
     """Competing root predicates: keep the tree-selected core predicate (ties
     broken by direct argument count), demote non-clause verbs to modifier,
     never demote true subordinate-clause predicates (they get their parent
@@ -270,7 +272,9 @@ def _arbitrate_root_predicate(component: dict, index: int, alerts: list) -> tupl
             if isinstance(entry, dict) and entry.get("target_occ") in argument_counts:
                 argument_counts[entry["target_occ"]] += 1
         best = max(argument_counts.values())
-        candidates = [entry for entry in candidates if argument_counts[entry["pos"]] == best]
+        candidates = [
+            entry for entry in candidates if argument_counts[entry["pos"]] == best
+        ]
     if len(candidates) != 1:
         return None, True
 
@@ -297,7 +301,9 @@ def _arbitrate_root_predicate(component: dict, index: int, alerts: list) -> tupl
     return component, False
 
 
-def _repair_missing_predicate(component: dict, index: int, alerts: list) -> tuple[dict | None, bool]:
+def _repair_missing_predicate(
+    component: dict, index: int, alerts: list
+) -> tuple[dict | None, bool]:
     """No root predicate: repair the role only when the unique type=P atom and
     the tree root agree; never invent an atom."""
     atoms = component.get("atoms")
@@ -393,7 +399,9 @@ def _tree_determined_modifier_target(
         if len(predicate_positions) != 1:
             continue
         predicate_pos = predicate_positions[0]
-        targets.extend(predicate_pos for value in level.get("modifier") or [] if value == text)
+        targets.extend(
+            predicate_pos for value in level.get("modifier") or [] if value == text
+        )
         targets.extend(
             predicate_pos
             for branch in level.get("conditional") or []
@@ -417,7 +425,9 @@ def _tree_determined_modifier_target(
     return targets[0] if len(targets) == 1 else None
 
 
-def _repair_targets(component: dict, index: int, alerts: list) -> tuple[dict | None, bool]:
+def _repair_targets(
+    component: dict, index: int, alerts: list
+) -> tuple[dict | None, bool]:
     """Repair uniquely tree-determined argument/modifier targets.
 
     Self references, cycles, targets outside the component, and ambiguous
@@ -582,7 +592,9 @@ def _check_anaphora_antecedents(atoms: list[NoesisAtom], text_counts: Counter) -
     """resolved=true requires another atom with the same text (section 5.5)."""
     for index, atom in enumerate(atoms):
         if atom.resolved is True and text_counts[atom.text] < 2:
-            raise _SemanticFailure("anaphora_antecedent_missing", f"atoms[{index}].resolved")
+            raise _SemanticFailure(
+                "anaphora_antecedent_missing", f"atoms[{index}].resolved"
+            )
 
 
 def _check_component(

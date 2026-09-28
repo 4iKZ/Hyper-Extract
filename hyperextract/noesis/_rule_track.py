@@ -29,19 +29,19 @@ def _check_rule_template(
 ) -> None:
     """Require a source-grounded projection while permitting composition."""
     if component.rule_template.conclusion.predicate != root.text:
-        raise _SemanticFailure("rule_conclusion_mismatch", "rule_template.conclusion.predicate")
+        raise _SemanticFailure(
+            "rule_conclusion_mismatch", "rule_template.conclusion.predicate"
+        )
 
     for index, premise in enumerate(component.rule_template.premise):
         if not _source_backed(premise.text, normalized_source):
-            raise _SemanticFailure("rule_source_violation", f"rule_template.premise[{index}].text")
+            raise _SemanticFailure(
+                "rule_source_violation", f"rule_template.premise[{index}].text"
+            )
 
     conclusion = component.rule_template.conclusion
     for role in ("agent", "patient", "modifier"):
-        allowed = {
-            atom.text
-            for atom in component.atoms
-            if atom.role == role
-        }
+        allowed = {atom.text for atom in component.atoms if atom.role == role}
         for index, value in enumerate(getattr(conclusion, role)):
             if value not in allowed:
                 raise _SemanticFailure(
@@ -51,4 +51,6 @@ def _check_rule_template(
 
     for index, condition in enumerate(component.rule_template.condition):
         if not _source_backed(condition, normalized_source):
-            raise _SemanticFailure("rule_source_violation", f"rule_template.condition[{index}]")
+            raise _SemanticFailure(
+                "rule_source_violation", f"rule_template.condition[{index}]"
+            )
