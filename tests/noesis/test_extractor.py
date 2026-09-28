@@ -458,6 +458,43 @@ class TestCanonicalPromptTerminology:
         assert "不得仅因缺少显式时间词而过滤" in NOESIS_CANONICAL_PROMPT
         assert "完成态或当前状态的一次具体观察" in NOESIS_CANONICAL_PROMPT
 
+    def test_predicates_are_classified_before_atoms_are_constructed(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert prompt.index("先逐个列出谓词候选") < prompt.index("逐个判定其证据类型")
+        assert prompt.index("逐个判定其证据类型") < prompt.index("先为每个保留的谓词建立 P")
+        assert prompt.index("先为每个保留的谓词建立 P") < prompt.index("再把剩余成分构造成 E")
+        assert "DIRECT、REPORTED、LITERAL、NONASSERTIVE" in prompt
+        assert "每个 DIRECT 或 REPORTED 谓词候选都已有对应的 P" in prompt
+        assert "每个 LITERAL 谓词候选都没有被提升为事实" in prompt
+        assert "完整命题不得作为单个 E" in prompt
+
+    def test_literal_exemption_is_local_to_an_identifiable_payload(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert "引用豁免只作用于可明确定位的字面量范围" in prompt
+        assert "前面出现命令或日志，不会使后续自然语言陈述自动变成 LITERAL" in prompt
+        assert "普通陈述不能仅因包含技术术语、数值或状态词而使用引用豁免" in prompt
+
+    def test_contrastive_diagnosis_keeps_the_positive_state_predicate(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert "否定前项不能使转折后的肯定状态消失" in prompt
+        assert "“被阻塞”“等”均为 DIRECT" in prompt
+
+    def test_standalone_machine_error_line_is_literal(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert "程序名、错误级别、错误码和消息" in prompt
+        assert "整行均为 LITERAL 并返回 []" in prompt
+        assert "消息中的 changed、failed 或其他动作词" in prompt
+
+    def test_quoted_diagnostics_do_not_create_unasserted_events(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert "机器原始输出没有外层陈述时才返回 []" in prompt
+        assert "不从字面量中的动作词推断事件发生" in prompt
+        assert "只抽取字面量出现这一事件" in prompt
+        assert "保留报告谓词与被报告事件的从属关系" in prompt
+        assert "问题、指令和命令输出本身不构成事件断言" in prompt
+        assert "仅适用于被断言的命题，不适用于作为引用对象的字面量" in prompt
+        assert "直接陈述的状态变化属于 fact 候选" in prompt
+
     def test_contains_exactly_three_authoritative_examples(self):
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
         assert "以下三个示例" in NOESIS_CANONICAL_PROMPT
