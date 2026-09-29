@@ -88,7 +88,9 @@ def extract_noesis_components(
     errors are never masked: only the pydantic ``ValidationError`` from the
     schema layer counts as an extraction failure.
     """
-    if critic_once is None and os.getenv("HYPEREXTRACT_NOESIS_CLAUSE_CRITIC", "").lower() in {
+    if critic_once is None and os.getenv(
+        "HYPEREXTRACT_NOESIS_CLAUSE_CRITIC", ""
+    ).lower() in {
         "1",
         "true",
         "yes",
