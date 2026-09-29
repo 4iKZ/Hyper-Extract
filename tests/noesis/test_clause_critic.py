@@ -152,6 +152,35 @@ def test_critic_uses_strict_json_schema_and_source_context():
     assert response_format["json_schema"]["strict"] is True
 
 
+def test_env_flag_enables_bound_critic_without_hindsight_api_changes(monkeypatch):
+    fake = FakeExtractOnce([[leaked_fact()], [repaired_fact()]])
+    calls = []
+
+    def bound_critic(source, components):
+        calls.append(components)
+        return leakage_result() if len(calls) == 1 else ClauseCriticResult(decisions=[])
+
+    fake._noesis_clause_critic = bound_critic
+    monkeypatch.setenv("HYPEREXTRACT_NOESIS_CLAUSE_CRITIC", "true")
+
+    outcome = extract_noesis_components(SOURCE, extract_once=fake)
+
+    assert outcome.attempts == 2
+    assert len(calls) == 2
+    assert outcome.components[0].model_dump() == repaired_fact()
+
+
+def test_env_flag_is_off_by_default(monkeypatch):
+    fake = FakeExtractOnce([[leaked_fact()]])
+    fake._noesis_clause_critic = lambda source, components: leakage_result()
+    monkeypatch.delenv("HYPEREXTRACT_NOESIS_CLAUSE_CRITIC", raising=False)
+
+    outcome = extract_noesis_components(SOURCE, extract_once=fake)
+
+    assert outcome.attempts == 1
+    assert outcome.components[0].model_dump() == leaked_fact()
+
+
 def test_critic_hit_retries_with_targeted_feedback_and_does_not_rewrite_atoms():
     fake = FakeExtractOnce([[leaked_fact()], [repaired_fact()]])
     critic_calls = []

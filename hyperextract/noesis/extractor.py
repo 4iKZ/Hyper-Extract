@@ -1,6 +1,7 @@
 """Noesis Stage 1 extractor: one retry around the LLM extraction call."""
 
 import json
+import os
 from collections.abc import Callable
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -8,7 +9,12 @@ from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 
-from .critic import ClauseCriticResult, build_clause_retry_feedback, leakage_decisions
+from .critic import (
+    ClauseCriticResult,
+    build_clause_retry_feedback,
+    create_clause_critic,
+    leakage_decisions,
+)
 from .models import (
     ExtractionAlert,
     ExtractionOutcome,
@@ -57,6 +63,10 @@ def create_noesis_extractor(
             raise TypeError("Noesis LLM response content must be text")
         return json.loads(content)
 
+    # Advisory critic shares the exact same configured LLM client. It is only
+    # activated by extract_noesis_components when the explicit experiment flag
+    # is enabled, so production behavior remains unchanged by default.
+    extract_once._noesis_clause_critic = create_clause_critic(llm_client=llm_client)  # type: ignore[attr-defined]
     return extract_once
 
 
@@ -78,6 +88,14 @@ def extract_noesis_components(
     errors are never masked: only the pydantic ``ValidationError`` from the
     schema layer counts as an extraction failure.
     """
+    if critic_once is None and os.getenv("HYPEREXTRACT_NOESIS_CLAUSE_CRITIC", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        critic_once = getattr(extract_once, "_noesis_clause_critic", None)
+
     last_error: Exception | None = None
     retry_feedback = ""
     critic_retry_alert: ExtractionAlert | None = None
