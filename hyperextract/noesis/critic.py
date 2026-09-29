@@ -36,7 +36,15 @@ class ClauseCriticDecision(BaseModel):
     atom_pos: int
     classification: Literal["KEEP", "CLAUSE_LEAKAGE", "UNCERTAIN"]
     missing_predicates: list[str]
-    reason: str
+
+
+class ClauseCriticVerdict(BaseModel):
+    """Minimal model-facing response for exactly one candidate E atom."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    leak: bool
+    predicates: list[str]
 
 
 class ClauseCriticResult(BaseModel):
@@ -45,28 +53,24 @@ class ClauseCriticResult(BaseModel):
     decisions: list[ClauseCriticDecision]
 
 
-CLAUSE_CRITIC_PROMPT = """你是 Noesis 的 Entity Atom 语义审查器。你不重写 atoms、不补 tree，也不判断事实真假。
-你的任务只是在给定 source 与候选 E atom 后，判断这个 E 是否把一个本应继续处理的自然语言命题/从句整体包进了 Entity Atom。
-
-分类只能是：
-- KEEP：这是可独立指称的实体、复合名词、时间/数量/路径/配置名/指标名/代码/SQL/命令、或可明确定位的技术字面量。即使其中出现看起来像动词的英文词，也不能因此拆开。
-- CLAUSE_LEAKAGE：该 E 自身包含一个自然语言动作、状态变化、判断或多个串行动作，当前抽取把命题内容整体塞进了 E。命中后，主抽取器需要重新检查：若这是 DIRECT/REPORTED 断言，应把真正的动作/状态建立为 P；若其实是问题、建议、指令、操作步骤或设想，应按 NONASSERTIVE 处理而不是制造事实。
-- UNCERTAIN：上下文不足，无法可靠区分 KEEP 与 CLAUSE_LEAKAGE。
+CLAUSE_CRITIC_PROMPT = """你是 Noesis 的 Entity Atom 语义审查器。一次只审查一个候选 E atom。
+判断它是否把本应继续处理的自然语言命题或从句整体包进了 E。
 
 判定原则：
 1. 不能按长度判断；长错误消息、SQL、配置项、DNS 名、路径、指标名都可以 KEEP。
 2. 不能只因 E 中出现某个 predicate 的字符串就判错；“服务注册接入规范”仍可能是合法名词。
 3. 使用 source 判断字面量边界。比如“日志里出现 cannot evict pod as it would violate PDB”时，整个错误字符串可以 KEEP，内部 evict/violate 不建立新事实。
 4. 自然语言动作链不能作为一个 E。例如“实际把旧值写回 V1”中的“写回”是谓词；“取两边状态比较后写 V2 的值到 V1”包含“取/比较/写”等动作，不应整体作为 E。
-5. 建议/操作步骤同样不能为了填充论元而整体塞进 E；例如“把规则写进缓存规范”若只是建议，应由主抽取器在 retry 时重新判为 NONASSERTIVE。
+5. 建议或操作步骤也不能为了填充论元而整体塞进 E；它们仍属于 leakage，后续抽取器会重新判断是否应输出事实。
+6. 只有确定是实体、复合名词或技术字面量时才返回 leak=false；不确定时按 fail-closed 返回 leak=true。
 
-只返回严格 JSON 对象，逐个候选给出决定。missing_predicates 只填写候选 span 内明确遗漏的最小谓词字面；KEEP/UNCERTAIN 时必须为 []。
+只返回 {{"leak": boolean, "predicates": string[]}}。predicates 只填写候选 E 内逐字出现的最小谓词；leak=false 时必须为 []。不要解释。
 
 source:
 {source_text}
 
-candidates:
-{candidates_json}
+candidate:
+{candidate_json}
 """
 
 
@@ -115,7 +119,7 @@ def create_clause_critic(
             "json_schema": {
                 "name": "noesis_clause_critic",
                 "strict": True,
-                "schema": ClauseCriticResult.model_json_schema(),
+                "schema": ClauseCriticVerdict.model_json_schema(),
             },
         }
     )
@@ -132,28 +136,29 @@ def create_clause_critic(
         if not candidates:
             return ClauseCriticResult(decisions=[])
 
-        response = chain.invoke(
-            {
-                "source_text": source_text,
-                "candidates_json": json.dumps(
-                    [candidate.model_dump() for candidate in candidates],
-                    ensure_ascii=False,
-                ),
-            }
-        )
-        content = response.text if isinstance(response, BaseMessage) else response
-        if not isinstance(content, str):
-            raise TypeError("Noesis clause critic response content must be text")
-
-        result = ClauseCriticResult.model_validate_json(content)
-        allowed = {
-            (candidate.component_index, candidate.atom_pos) for candidate in candidates
-        }
-        decisions = [
-            decision
-            for decision in result.decisions
-            if (decision.component_index, decision.atom_pos) in allowed
-        ]
+        decisions = []
+        for candidate in candidates:
+            response = chain.invoke(
+                {
+                    "source_text": source_text,
+                    "candidate_json": json.dumps(
+                        candidate.model_dump(),
+                        ensure_ascii=False,
+                    ),
+                }
+            )
+            content = response.text if isinstance(response, BaseMessage) else response
+            if not isinstance(content, str):
+                raise TypeError("Noesis clause critic response content must be text")
+            verdict = ClauseCriticVerdict.model_validate_json(content)
+            decisions.append(
+                ClauseCriticDecision(
+                    component_index=candidate.component_index,
+                    atom_pos=candidate.atom_pos,
+                    classification=("CLAUSE_LEAKAGE" if verdict.leak else "KEEP"),
+                    missing_predicates=verdict.predicates if verdict.leak else [],
+                )
+            )
         return ClauseCriticResult(decisions=decisions)
 
     return critique
@@ -186,6 +191,6 @@ def build_clause_retry_feedback(result: ClauseCriticResult) -> str:
         )
         lines.append(
             f"- component[{issue.component_index}] atom pos={issue.atom_pos}: "
-            f"遗漏/被包裹谓词候选={predicates}；{issue.reason}"
+            f"遗漏/被包裹谓词候选={predicates}"
         )
     return "\n".join(lines)

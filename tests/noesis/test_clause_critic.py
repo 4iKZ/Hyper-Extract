@@ -108,7 +108,6 @@ def leakage_result():
                 atom_pos=1,
                 classification="CLAUSE_LEAKAGE",
                 missing_predicates=["写进"],
-                reason="完整自然语言动作被重复包进 modifier E",
             )
         ]
     )
@@ -127,29 +126,22 @@ def test_critic_uses_strict_json_schema_and_source_context():
     from hyperextract.noesis.validation import validate_components
 
     validated = validate_components([leaked_fact()], source_text=SOURCE)
-    payload = {
-        "decisions": [
-            {
-                "component_index": 0,
-                "atom_pos": 1,
-                "classification": "CLAUSE_LEAKAGE",
-                "missing_predicates": ["写进"],
-                "reason": "动作从句整体进入 E",
-            }
-        ]
-    }
+    payload = {"leak": True, "predicates": ["写进"]}
     llm = RecordingChatModel(responses=[json.dumps(payload, ensure_ascii=False)])
     critic = create_clause_critic(llm_client=llm)
 
     result = critic(SOURCE, validated.components)
 
     assert result.decisions[0].classification == "CLAUSE_LEAKAGE"
+    assert result.decisions[0].missing_predicates == ["写进"]
     rendered = "\n".join(str(message.content) for message in llm.calls[0])
     assert SOURCE in rendered
     assert "把「TTL 禁止整点对齐」写进缓存规范" in rendered
     response_format = llm.call_kwargs[0]["response_format"]
     assert response_format["json_schema"]["name"] == "noesis_clause_critic"
     assert response_format["json_schema"]["strict"] is True
+    schema = response_format["json_schema"]["schema"]
+    assert set(schema["properties"]) == {"leak", "predicates"}
 
 
 def test_env_flag_enables_bound_critic_without_hindsight_api_changes(monkeypatch):
@@ -239,10 +231,10 @@ def test_critic_failure_keeps_validated_result_instead_of_failing_extraction():
     assert [a.alert_code for a in outcome.alerts] == ["clause_critic_failed"]
 
 
-def test_prompt_has_clause_contrasts_and_retry_feedback_without_fourth_authoritative_example():
-    assert "局部粒度对照" in NOESIS_CANONICAL_PROMPT
-    assert "把规则写进缓存规范" in NOESIS_CANONICAL_PROMPT
-    assert "cannot evict pod as it would violate PDB" in NOESIS_CANONICAL_PROMPT
-    assert "服务注册接入规范" in NOESIS_CANONICAL_PROMPT
+def test_prompt_keeps_retry_feedback_without_global_clause_contrasts():
+    assert "局部粒度对照" not in NOESIS_CANONICAL_PROMPT
+    assert "把规则写进缓存规范" not in NOESIS_CANONICAL_PROMPT
+    assert "cannot evict pod as it would violate PDB" not in NOESIS_CANONICAL_PROMPT
+    assert "服务注册接入规范" not in NOESIS_CANONICAL_PROMPT
     assert "{retry_feedback}" in NOESIS_CANONICAL_PROMPT
     assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
