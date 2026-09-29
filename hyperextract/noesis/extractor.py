@@ -8,7 +8,14 @@ from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 
-from .models import ExtractionAlert, ExtractionOutcome, NoesisExtraction
+from .critic import ClauseCriticResult, build_clause_retry_feedback, leakage_decisions
+from .models import (
+    ExtractionAlert,
+    ExtractionOutcome,
+    FactComponent,
+    HypothesisComponent,
+    NoesisExtraction,
+)
 from .prompt import NOESIS_CANONICAL_PROMPT
 from .validation import validate_components
 
@@ -38,10 +45,11 @@ def create_noesis_extractor(
     )
     chain = prompt | schema_client
 
-    def extract_once(text: str) -> object:
+    def extract_once(text: str, *, retry_feedback: str = "") -> object:
         response = chain.invoke(
             {
                 "source_text": text,
+                "retry_feedback": retry_feedback or "无。",
             }
         )
         content = response.text if isinstance(response, BaseMessage) else response
@@ -56,6 +64,10 @@ def extract_noesis_components(
     text: str,
     *,
     extract_once: Callable[..., object],
+    critic_once: Callable[
+        [str, list[FactComponent | HypothesisComponent]], ClauseCriticResult
+    ]
+    | None = None,
 ) -> ExtractionOutcome:
     """Extract event closure components with at most one retry.
 
@@ -67,9 +79,15 @@ def extract_noesis_components(
     schema layer counts as an extraction failure.
     """
     last_error: Exception | None = None
+    retry_feedback = ""
+    critic_retry_alert: ExtractionAlert | None = None
+
     for attempt in (1, 2):
         try:
-            raw = extract_once(text)
+            if retry_feedback:
+                raw = extract_once(text, retry_feedback=retry_feedback)
+            else:
+                raw = extract_once(text)
         except Exception as error:
             last_error = error
             continue
@@ -81,9 +99,78 @@ def extract_noesis_components(
         if result.retry_needed and attempt == 1:
             last_error = None
             continue
+
+        if critic_once is not None:
+            try:
+                critic_result = critic_once(text, result.components)
+            except Exception as error:
+                alert = ExtractionAlert(
+                    stage="hyper_extract",
+                    alert_code="clause_critic_failed",
+                    severity="info",
+                    message="clause critic failed; keeping validated extraction",
+                    details={"error_type": type(error).__name__},
+                )
+                return ExtractionOutcome(
+                    components=result.components,
+                    alerts=[*result.alerts, alert],
+                    attempts=attempt,
+                )
+
+            issues = leakage_decisions(critic_result)
+            if issues and attempt == 1:
+                retry_feedback = build_clause_retry_feedback(critic_result)
+                critic_retry_alert = ExtractionAlert(
+                    stage="hyper_extract",
+                    alert_code="clause_critic_retry",
+                    severity="info",
+                    message="clause critic requested one targeted extraction retry",
+                    details={
+                        "issue_count": len(issues),
+                        "atom_positions": [
+                            {
+                                "component_index": issue.component_index,
+                                "atom_pos": issue.atom_pos,
+                            }
+                            for issue in issues
+                        ],
+                    },
+                )
+                last_error = None
+                continue
+            if issues:
+                remaining = ExtractionAlert(
+                    stage="hyper_extract",
+                    alert_code="clause_leakage_remaining",
+                    severity="warning",
+                    message="clause-shaped Entity Atom remained after targeted retry",
+                    details={
+                        "issue_count": len(issues),
+                        "atom_positions": [
+                            {
+                                "component_index": issue.component_index,
+                                "atom_pos": issue.atom_pos,
+                            }
+                            for issue in issues
+                        ],
+                    },
+                )
+                alerts = [*result.alerts]
+                if critic_retry_alert is not None:
+                    alerts.append(critic_retry_alert)
+                alerts.append(remaining)
+                return ExtractionOutcome(
+                    components=result.components,
+                    alerts=alerts,
+                    attempts=attempt,
+                )
+
+        alerts = [*result.alerts]
+        if critic_retry_alert is not None:
+            alerts.append(critic_retry_alert)
         return ExtractionOutcome(
             components=result.components,
-            alerts=result.alerts,
+            alerts=alerts,
             attempts=attempt,
         )
     alert = ExtractionAlert(
