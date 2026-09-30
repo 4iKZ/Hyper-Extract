@@ -495,12 +495,17 @@ class TestCanonicalPromptTerminology:
         assert "仅适用于被断言的命题，不适用于作为引用对象的字面量" in prompt
         assert "直接陈述的状态变化属于 fact 候选" in prompt
 
-    def test_contains_exactly_three_authoritative_examples(self):
-        assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
-        assert "以下三个示例" in NOESIS_CANONICAL_PROMPT
-        # The project-added fourth example is gone from the production prompt.
+    def test_contains_two_operational_and_three_existing_examples(self):
+        assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 5
+        assert "以下五个示例" in NOESIS_CANONICAL_PROMPT
+        assert NOESIS_CANONICAL_PROMPT.index(
+            "运维故障中的并列事实"
+        ) < NOESIS_CANONICAL_PROMPT.index("纯事实")
+        assert NOESIS_CANONICAL_PROMPT.index(
+            "日志字面量、明确状态"
+        ) < NOESIS_CANONICAL_PROMPT.index("纯事实")
+        # The previously removed project-added example stays absent.
         assert "小明坐在沙发上" not in NOESIS_CANONICAL_PROMPT
-        assert "示例 4" not in NOESIS_CANONICAL_PROMPT
         # The old third example is gone too.
         assert "没写作业" not in NOESIS_CANONICAL_PROMPT
 

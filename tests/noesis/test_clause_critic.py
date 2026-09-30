@@ -237,4 +237,4 @@ def test_prompt_keeps_retry_feedback_without_global_clause_contrasts():
     assert "cannot evict pod as it would violate PDB" not in NOESIS_CANONICAL_PROMPT
     assert "服务注册接入规范" not in NOESIS_CANONICAL_PROMPT
     assert "{retry_feedback}" in NOESIS_CANONICAL_PROMPT
-    assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
+    assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 5

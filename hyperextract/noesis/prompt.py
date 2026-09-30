@@ -73,9 +73,87 @@ NOESIS_CANONICAL_PROMPT = """\
 24. 如果无法确定某个 component 的 atoms、tree 或 target_occ，则不要输出该 component。
 
 ## 权威示例
-以下三个示例逐字段遵守上述规则，不得新增其他示例风格：
+以下五个示例逐字段遵守上述规则，不得新增其他示例风格：
 
-### 示例 1：纯事实
+### 示例 1：运维故障中的并列事实与操作建议
+输入：User: 昨晚 mysql-order 的连接数超限，客户端报错。
+Assistant: 先检查连接池配置。
+输出：
+[
+  {{
+    "utterance_type": "fact",
+    "atoms": [
+      {{"pos": 1, "text": "昨晚", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null}},
+      {{"pos": 2, "text": "mysql-order", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}},
+      {{"pos": 3, "text": "连接数", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}},
+      {{"pos": 4, "text": "超限", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}
+    ],
+    "tree": {{
+      "predicate": "超限",
+      "agent": [],
+      "patient": [{{"text": "连接数", "modifier": ["mysql-order"], "implied": false}}],
+      "modifier": ["昨晚"],
+      "nested": [],
+      "conditional": []
+    }}
+  }},
+  {{
+    "utterance_type": "fact",
+    "atoms": [
+      {{"pos": 1, "text": "客户端", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "报错", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}
+    ],
+    "tree": {{
+      "predicate": "报错",
+      "agent": [],
+      "patient": [{{"text": "客户端", "modifier": [], "implied": false}}],
+      "modifier": [],
+      "nested": [],
+      "conditional": []
+    }}
+  }}
+]
+
+### 示例 2：日志字面量、明确状态与操作建议
+输入：User: 应用日志里出现了 "Failed to parse"，采集器随后停止。
+Assistant: 请检查配置。
+输出：
+[
+  {{
+    "utterance_type": "fact",
+    "atoms": [
+      {{"pos": 1, "text": "应用日志里", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "出现", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
+      {{"pos": 3, "text": "Failed to parse", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}
+    ],
+    "tree": {{
+      "predicate": "出现",
+      "agent": [],
+      "patient": [{{"text": "Failed to parse", "modifier": [], "implied": false}}],
+      "modifier": ["应用日志里"],
+      "nested": [],
+      "conditional": []
+    }}
+  }},
+  {{
+    "utterance_type": "fact",
+    "atoms": [
+      {{"pos": 1, "text": "采集器", "type": "E", "role": "patient", "target_occ": 3, "resolved": null}},
+      {{"pos": 2, "text": "随后", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}},
+      {{"pos": 3, "text": "停止", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}
+    ],
+    "tree": {{
+      "predicate": "停止",
+      "agent": [],
+      "patient": [{{"text": "采集器", "modifier": [], "implied": false}}],
+      "modifier": ["随后"],
+      "nested": [],
+      "conditional": []
+    }}
+  }}
+]
+
+### 示例 3：纯事实
 输入：昨天妈妈在超市买了苹果。
 输出：
 [
@@ -99,7 +177,7 @@ NOESIS_CANONICAL_PROMPT = """\
   }}
 ]
 
-### 示例 2：纯规律
+### 示例 4：纯规律
 输入：太阳每天从东边升起。
 输出：
 [
@@ -134,7 +212,7 @@ NOESIS_CANONICAL_PROMPT = """\
   }}
 ]
 
-### 示例 3：事实与规律复合、嵌套从属谓词与指代消解
+### 示例 5：事实与规律复合、嵌套从属谓词与指代消解
 输入：妈妈让小明打酱油，否则就揍他。
 输出：
 [
