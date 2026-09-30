@@ -474,6 +474,16 @@ class TestCanonicalPromptTerminology:
         assert "前面出现命令或日志，不会使后续自然语言陈述自动变成 LITERAL" in prompt
         assert "普通陈述不能仅因包含技术术语、数值或状态词而使用引用豁免" in prompt
 
+    def test_large_e_self_check_exempts_literal_payloads(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert "被断言的自然语言命题不能装入单个 E" in prompt
+        assert "该检查不适用于可明确定位的 LITERAL 字面量" in prompt
+
+    def test_subordinate_intent_does_not_assert_completion(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert "从属谓词描述被要求的内容，不断言该动作已经发生" in prompt
+        assert "“解析失败”为 REPORTED" in prompt
+
     def test_contrastive_diagnosis_keeps_the_positive_state_predicate(self):
         prompt = NOESIS_CANONICAL_PROMPT
         assert "否定前项不能使转折后的肯定状态消失" in prompt
