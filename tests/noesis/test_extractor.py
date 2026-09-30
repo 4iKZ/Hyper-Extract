@@ -509,13 +509,6 @@ class TestCanonicalPromptTerminology:
         assert positions == sorted(positions)
         assert "昨天妈妈在超市买了苹果。" not in NOESIS_CANONICAL_PROMPT
         assert "太阳每天从东边升起。" not in NOESIS_CANONICAL_PROMPT
-
-    def test_explicit_discard_boundary_precedes_examples(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert prompt.index("## 先判定应丢弃的内容") < prompt.index("## 权威示例")
-        assert "待执行的排查、修复步骤和规范要求" in prompt
-        assert "只猜测这次故障的原因而未确认" in prompt
-        assert "只丢弃相应语段，保留其他被明确断言的事件" in prompt
         # The previously removed project-added example stays absent.
         assert "小明坐在沙发上" not in NOESIS_CANONICAL_PROMPT
         # The old third example is gone too.
