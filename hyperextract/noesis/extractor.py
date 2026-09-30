@@ -63,7 +63,7 @@ def create_noesis_extractor(
             raise TypeError("Noesis LLM response content must be text")
         return json.loads(content)
 
-    # Advisory critic shares the exact same configured LLM client. It is only
+    # The fail-closed critic shares the exact same configured LLM client. It is only
     # activated by extract_noesis_components when the explicit experiment flag
     # is enabled, so production behavior remains unchanged by default.
     extract_once._noesis_clause_critic = create_clause_critic(llm_client=llm_client)  # type: ignore[attr-defined]
@@ -87,6 +87,10 @@ def extract_noesis_components(
     same problem is accepted as per-component drops. Validator programming
     errors are never masked: only the pydantic ``ValidationError`` from the
     schema layer counts as an extraction failure.
+
+    When enabled, the critic reviews every E occurrence. Failed reviews and
+    leakage remaining after the retry reject whole affected components; an
+    unlocalized critic failure rejects all unreviewed components.
     """
     if critic_once is None and os.getenv(
         "HYPEREXTRACT_NOESIS_CLAUSE_CRITIC", ""
@@ -127,17 +131,44 @@ def extract_noesis_components(
                 alert = ExtractionAlert(
                     stage="hyper_extract",
                     alert_code="clause_critic_failed",
-                    severity="info",
-                    message="clause critic failed; keeping validated extraction",
-                    details={"error_type": type(error).__name__},
+                    severity="warning",
+                    message="clause critic failed; unreviewed components dropped",
+                    details={
+                        "error_type": type(error).__name__,
+                        "dropped_component_indices": list(
+                            range(len(result.components))
+                        ),
+                    },
                 )
                 return ExtractionOutcome(
-                    components=result.components,
+                    components=[],
                     alerts=[*result.alerts, alert],
                     attempts=attempt,
                 )
 
-            issues = leakage_decisions(critic_result)
+            uncertain_indices = {
+                decision.component_index
+                for decision in critic_result.decisions
+                if decision.classification == "UNCERTAIN"
+            }
+            critic_alerts = []
+            if uncertain_indices:
+                critic_alerts.append(
+                    ExtractionAlert(
+                        stage="hyper_extract",
+                        alert_code="clause_critic_failed",
+                        severity="warning",
+                        message="candidate review failed; affected components dropped",
+                        details={
+                            "dropped_component_indices": sorted(uncertain_indices)
+                        },
+                    )
+                )
+            issues = [
+                issue
+                for issue in leakage_decisions(critic_result)
+                if issue.component_index not in uncertain_indices
+            ]
             if issues and attempt == 1:
                 retry_feedback = build_clause_retry_feedback(critic_result)
                 critic_retry_alert = ExtractionAlert(
@@ -163,9 +194,12 @@ def extract_noesis_components(
                     stage="hyper_extract",
                     alert_code="clause_leakage_remaining",
                     severity="warning",
-                    message="clause-shaped Entity Atom remained after targeted retry",
+                    message="clause-shaped Entity Atom remained; affected components dropped",
                     details={
                         "issue_count": len(issues),
+                        "dropped_component_indices": sorted(
+                            {issue.component_index for issue in issues}
+                        ),
                         "atom_positions": [
                             {
                                 "component_index": issue.component_index,
@@ -175,15 +209,28 @@ def extract_noesis_components(
                         ],
                     },
                 )
-                alerts = [*result.alerts]
+                alerts = [*result.alerts, *critic_alerts]
                 if critic_retry_alert is not None:
                     alerts.append(critic_retry_alert)
                 alerts.append(remaining)
+                dropped_indices = uncertain_indices | {
+                    issue.component_index for issue in issues
+                }
                 return ExtractionOutcome(
-                    components=result.components,
+                    components=[
+                        component
+                        for index, component in enumerate(result.components)
+                        if index not in dropped_indices
+                    ],
                     alerts=alerts,
                     attempts=attempt,
                 )
+            result.components = [
+                component
+                for index, component in enumerate(result.components)
+                if index not in uncertain_indices
+            ]
+            result.alerts.extend(critic_alerts)
 
         alerts = [*result.alerts]
         if critic_retry_alert is not None:

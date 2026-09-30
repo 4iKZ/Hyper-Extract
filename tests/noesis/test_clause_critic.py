@@ -119,7 +119,10 @@ def test_candidate_prefilter_is_broad_but_does_not_decide_semantics():
     result = validate_components([leaked_fact()], source_text=SOURCE)
     candidates = collect_clause_critic_candidates(result.components)
 
-    assert [(c.atom_pos, c.role) for c in candidates] == [(1, "modifier")]
+    assert [(c.atom_pos, c.role) for c in candidates] == [
+        (1, "modifier"),
+        (3, "patient"),
+    ]
 
 
 def test_critic_uses_strict_json_schema_and_source_context():
@@ -197,7 +200,7 @@ def test_critic_hit_retries_with_targeted_feedback_and_does_not_rewrite_atoms():
     assert [a.alert_code for a in outcome.alerts] == ["clause_critic_retry"]
 
 
-def test_second_critic_hit_warns_without_third_call_or_local_repair():
+def test_second_critic_hit_drops_without_third_call_or_local_repair():
     fake = FakeExtractOnce([[leaked_fact()], [leaked_fact()]])
 
     outcome = extract_noesis_components(
@@ -207,14 +210,14 @@ def test_second_critic_hit_warns_without_third_call_or_local_repair():
     )
 
     assert len(fake.calls) == 2
-    assert outcome.components[0].model_dump() == leaked_fact()
+    assert outcome.components == []
     assert [a.alert_code for a in outcome.alerts] == [
         "clause_critic_retry",
         "clause_leakage_remaining",
     ]
 
 
-def test_critic_failure_keeps_validated_result_instead_of_failing_extraction():
+def test_critic_failure_drops_unreviewed_result():
     fake = FakeExtractOnce([[leaked_fact()]])
 
     def broken_critic(source, components):
@@ -227,7 +230,49 @@ def test_critic_failure_keeps_validated_result_instead_of_failing_extraction():
     )
 
     assert outcome.attempts == 1
-    assert outcome.components[0].model_dump() == leaked_fact()
+    assert outcome.components == []
+    assert [a.alert_code for a in outcome.alerts] == ["clause_critic_failed"]
+
+
+def test_remaining_leakage_preserves_other_components():
+    fake = FakeExtractOnce([[leaked_fact(), repaired_fact()]] * 2)
+    outcome = extract_noesis_components(
+        SOURCE,
+        extract_once=fake,
+        critic_once=lambda source, components: leakage_result(),
+    )
+    assert len(outcome.components) == 1
+    assert outcome.components[0].model_dump() == repaired_fact()
+
+
+def test_candidate_parse_failure_is_uncertain_and_other_candidates_continue():
+    from hyperextract.noesis.validation import validate_components
+
+    components = validate_components([leaked_fact()], source_text=SOURCE).components
+    llm = RecordingChatModel(
+        responses=["invalid json", '{"leak":false,"predicates":[]}']
+    )
+    result = create_clause_critic(llm_client=llm)(SOURCE, components)
+    assert [d.classification for d in result.decisions] == ["UNCERTAIN", "KEEP"]
+    assert len(llm.calls) == 2
+
+
+def test_uncertain_component_is_dropped_without_dropping_reviewed_component():
+    fake = FakeExtractOnce([[leaked_fact(), repaired_fact()]])
+    result = ClauseCriticResult(
+        decisions=[
+            ClauseCriticDecision(
+                component_index=0,
+                atom_pos=1,
+                classification="UNCERTAIN",
+                missing_predicates=[],
+            )
+        ]
+    )
+    outcome = extract_noesis_components(
+        SOURCE, extract_once=fake, critic_once=lambda *_: result
+    )
+    assert [c.model_dump() for c in outcome.components] == [repaired_fact()]
     assert [a.alert_code for a in outcome.alerts] == ["clause_critic_failed"]
 
 

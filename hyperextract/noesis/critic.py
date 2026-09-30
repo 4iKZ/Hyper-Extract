@@ -1,8 +1,8 @@
 """Semantic critic for proposition-shaped Entity Atoms.
 
-The critic is deliberately advisory: it never rewrites atoms or drops a
-component. It only identifies E atoms that appear to contain a proposition so
-the canonical extractor can retry with targeted feedback.
+The critic never rewrites atoms. It identifies leakage for a targeted retry
+and marks failed candidate reviews as UNCERTAIN so the extractor can reject
+their components rather than silently accept unreviewed data.
 """
 
 from __future__ import annotations
@@ -76,10 +76,8 @@ candidate:
 
 def collect_clause_critic_candidates(
     components: list[FactComponent | HypothesisComponent],
-    *,
-    min_text_length: int = 8,
 ) -> list[ClauseCriticCandidate]:
-    """Select broad candidates cheaply; the LLM critic makes the semantic call."""
+    """Review every Entity Atom; length is not a semantic safety criterion."""
 
     candidates: list[ClauseCriticCandidate] = []
     for component_index, component in enumerate(components):
@@ -90,8 +88,6 @@ def collect_clause_critic_candidates(
         ]
         for atom in component.atoms:
             if atom.type != "E" or atom.role not in {"agent", "patient", "modifier"}:
-                continue
-            if len(atom.text.strip()) < min_text_length:
                 continue
             candidates.append(
                 ClauseCriticCandidate(
@@ -108,7 +104,6 @@ def collect_clause_critic_candidates(
 def create_clause_critic(
     *,
     llm_client: BaseChatModel,
-    min_text_length: int = 8,
 ) -> Callable[[str, list[FactComponent | HypothesisComponent]], ClauseCriticResult]:
     """Create the optional semantic critic used after deterministic validation."""
 
@@ -129,28 +124,40 @@ def create_clause_critic(
         source_text: str,
         components: list[FactComponent | HypothesisComponent],
     ) -> ClauseCriticResult:
-        candidates = collect_clause_critic_candidates(
-            components,
-            min_text_length=min_text_length,
-        )
+        candidates = collect_clause_critic_candidates(components)
         if not candidates:
             return ClauseCriticResult(decisions=[])
 
         decisions = []
         for candidate in candidates:
-            response = chain.invoke(
-                {
-                    "source_text": source_text,
-                    "candidate_json": json.dumps(
-                        candidate.model_dump(),
-                        ensure_ascii=False,
-                    ),
-                }
-            )
-            content = response.text if isinstance(response, BaseMessage) else response
-            if not isinstance(content, str):
-                raise TypeError("Noesis clause critic response content must be text")
-            verdict = ClauseCriticVerdict.model_validate_json(content)
+            try:
+                response = chain.invoke(
+                    {
+                        "source_text": source_text,
+                        "candidate_json": json.dumps(
+                            candidate.model_dump(),
+                            ensure_ascii=False,
+                        ),
+                    }
+                )
+                content = (
+                    response.text if isinstance(response, BaseMessage) else response
+                )
+                if not isinstance(content, str):
+                    raise TypeError(
+                        "Noesis clause critic response content must be text"
+                    )
+                verdict = ClauseCriticVerdict.model_validate_json(content)
+            except Exception:
+                decisions.append(
+                    ClauseCriticDecision(
+                        component_index=candidate.component_index,
+                        atom_pos=candidate.atom_pos,
+                        classification="UNCERTAIN",
+                        missing_predicates=[],
+                    )
+                )
+                continue
             decisions.append(
                 ClauseCriticDecision(
                     component_index=candidate.component_index,
@@ -180,8 +187,10 @@ def build_clause_retry_feedback(result: ClauseCriticResult) -> str:
         return ""
 
     lines = [
-        "上一次输出存在 Entity Atom 从句泄漏。请重新执行完整的谓词候选与断言边界判断；"
-        "不要机械拆词，也不要把建议/指令改造成事实。"
+        (
+            "上一次输出存在 Entity Atom 从句泄漏。请重新执行完整的谓词候选与断言边界判断；"
+            "不要机械拆词，也不要把建议/指令改造成事实。"
+        )
     ]
     for issue in issues:
         predicates = (
