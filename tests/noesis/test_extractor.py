@@ -495,15 +495,20 @@ class TestCanonicalPromptTerminology:
         assert "仅适用于被断言的命题，不适用于作为引用对象的字面量" in prompt
         assert "直接陈述的状态变化属于 fact 候选" in prompt
 
-    def test_contains_two_operational_and_three_existing_examples(self):
+    def test_contains_four_operational_and_one_composite_example(self):
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 5
         assert "以下五个示例" in NOESIS_CANONICAL_PROMPT
-        assert NOESIS_CANONICAL_PROMPT.index(
-            "运维故障中的并列事实"
-        ) < NOESIS_CANONICAL_PROMPT.index("纯事实")
-        assert NOESIS_CANONICAL_PROMPT.index(
-            "日志字面量、明确状态"
-        ) < NOESIS_CANONICAL_PROMPT.index("纯事实")
+        headings = [
+            "运维故障中的并列事实",
+            "日志字面量、明确状态",
+            "简写操作建议与已发生状态",
+            "日志转述与未证实推测",
+            "事实与规律复合、嵌套从属谓词",
+        ]
+        positions = [NOESIS_CANONICAL_PROMPT.index(heading) for heading in headings]
+        assert positions == sorted(positions)
+        assert "昨天妈妈在超市买了苹果。" not in NOESIS_CANONICAL_PROMPT
+        assert "太阳每天从东边升起。" not in NOESIS_CANONICAL_PROMPT
         # The previously removed project-added example stays absent.
         assert "小明坐在沙发上" not in NOESIS_CANONICAL_PROMPT
         # The old third example is gone too.
@@ -533,8 +538,9 @@ class TestCanonicalPromptTerminology:
         assert "从属句 predicate 指向上级 SPO 的核心 predicate" not in NOESIS_CANONICAL_PROMPT
 
     def test_examples_keep_confirmed_target_and_resolved_contract(self):
-        assert '"text": "太阳", "type": "E", "role": "agent", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
-        assert '"text": "每天", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
+        assert '"text": "解析失败", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null' in NOESIS_CANONICAL_PROMPT
+        assert '"text": "采集器", "modifier": [], "implied": true' in NOESIS_CANONICAL_PROMPT
+        assert '"text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": true' in NOESIS_CANONICAL_PROMPT
 
     def test_explicitly_splits_coordinate_predicates_even_with_shared_context(self):
         assert "共享同一主语、时间或语境" in NOESIS_CANONICAL_PROMPT

@@ -153,61 +153,60 @@ Assistant: 请检查配置。
   }}
 ]
 
-### 示例 3：纯事实
-输入：昨天妈妈在超市买了苹果。
+### 示例 3：简写操作建议与已发生状态
+输入：User: worker-2 的消息积压增长。怎么处理？
+Assistant: 修三项：收紧批量、增加心跳、检查消费超时。
+判定边界：User 明确陈述“增长”；Assistant 的“修三项”是操作建议，不能当成已完成的动作。
 输出：
 [
   {{
     "utterance_type": "fact",
     "atoms": [
-      {{"pos": 1, "text": "昨天", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null}},
-      {{"pos": 2, "text": "妈妈", "type": "E", "role": "agent", "target_occ": 4, "resolved": null}},
-      {{"pos": 3, "text": "在超市", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null}},
-      {{"pos": 4, "text": "买", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 5, "text": "苹果", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}}
+      {{"pos": 1, "text": "worker-2", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "消息积压", "type": "E", "role": "patient", "target_occ": 3, "resolved": null}},
+      {{"pos": 3, "text": "增长", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}
     ],
     "tree": {{
-      "predicate": "买",
-      "agent": [{{"text": "妈妈", "modifier": [], "implied": false}}],
-      "patient": [{{"text": "苹果", "modifier": [], "implied": false}}],
-      "modifier": ["昨天", "在超市"],
+      "predicate": "增长",
+      "agent": [],
+      "patient": [{{"text": "消息积压", "modifier": ["worker-2"], "implied": false}}],
+      "modifier": [],
       "nested": [],
       "conditional": []
     }}
   }}
 ]
 
-### 示例 4：纯规律
-输入：太阳每天从东边升起。
+### 示例 4：日志转述与未证实推测
+输入：User: 告警显示采集器解析失败。
+Assistant: 可能是配置版本不匹配，先核对配置。
+判定边界：保留“显示”及其转述的“解析失败”；“可能不匹配”是推测，“核对”是建议，均不作为事实输出。
 输出：
 [
   {{
-    "utterance_type": "hypothesis",
+    "utterance_type": "fact",
     "atoms": [
-      {{"pos": 1, "text": "太阳", "type": "E", "role": "agent", "target_occ": 3, "resolved": null}},
-      {{"pos": 2, "text": "每天", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}},
-      {{"pos": 3, "text": "升起", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 4, "text": "东边", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}}
+      {{"pos": 1, "text": "告警", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}},
+      {{"pos": 2, "text": "显示", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
+      {{"pos": 3, "text": "采集器", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}},
+      {{"pos": 4, "text": "解析失败", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}}
     ],
     "tree": {{
-      "predicate": "升起",
-      "agent": [{{"text": "太阳", "modifier": [], "implied": false}}],
-      "patient": [],
-      "modifier": ["每天", "东边"],
-      "nested": [],
-      "conditional": []
-    }},
-    "rule_template": {{
-      "premise": [
-        {{"text": "太阳", "type": "E", "role": "agent"}}
+      "predicate": "显示",
+      "agent": [{{"text": "告警", "modifier": [], "implied": false}}],
+      "patient": [{{"text": "采集器", "modifier": [], "implied": false}}],
+      "modifier": [],
+      "nested": [
+        {{
+          "predicate": "解析失败",
+          "agent": [],
+          "patient": [{{"text": "采集器", "modifier": [], "implied": true}}],
+          "modifier": [],
+          "nested": [],
+          "conditional": []
+        }}
       ],
-      "conclusion": {{
-        "predicate": "升起",
-        "agent": ["太阳"],
-        "patient": [],
-        "modifier": ["东边"]
-      }},
-      "condition": ["每天"]
+      "conditional": []
     }}
   }}
 ]
