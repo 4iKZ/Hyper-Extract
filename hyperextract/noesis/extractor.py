@@ -29,18 +29,22 @@ from .validation import validate_components
 def create_noesis_extractor(
     *,
     llm_client: BaseChatModel,
+    json_mode: bool = False,
 ) -> Callable[..., object]:
-    """Build the production strict-JSON-Schema call for Noesis closures.
+    """Build the production call for Noesis closures.
 
     Noesis deliberately bypasses ``AutoModel.function_calling`` because tool
     schemas cannot reliably preserve both the authoritative root array and the
     recursive semantic tree. The provider constrains the response to the
-    authoritative root-array schema; application-level semantic validation
-    remains in ``extract_noesis_components``.
+    authoritative root-array schema by default. JSON mode supports providers
+    without server-side JSON Schema; application Schema and deterministic
+    validation remain in ``extract_noesis_components`` in either mode.
     """
     prompt = ChatPromptTemplate.from_template(NOESIS_CANONICAL_PROMPT)
-    schema_client = llm_client.bind(
-        response_format={
+    response_format = (
+        {"type": "json_object"}
+        if json_mode
+        else {
             "type": "json_schema",
             "json_schema": {
                 "name": "noesis_extraction",
@@ -49,6 +53,7 @@ def create_noesis_extractor(
             },
         }
     )
+    schema_client = llm_client.bind(response_format=response_format)
     chain = prompt | schema_client
 
     def extract_once(text: str, *, retry_feedback: str = "") -> object:
