@@ -53,7 +53,9 @@ def create_noesis_extractor(
             },
         }
     )
-    schema_client = llm_client.bind(response_format=response_format)
+    # Without an explicit limit the endpoint defaults to 4096 output tokens and
+    # long closures fail with LengthFinishReasonError.
+    schema_client = llm_client.bind(response_format=response_format, max_tokens=32768)
     chain = prompt | schema_client
 
     def extract_once(text: str, *, retry_feedback: str = "") -> object:

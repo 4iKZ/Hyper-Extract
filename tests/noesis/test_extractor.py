@@ -561,9 +561,10 @@ class TestCanonicalPromptTerminology:
         assert "真实从属的动作、状态、内容或证据事件" in NOESIS_CANONICAL_PROMPT
         assert "不额外输出聚合副本" in NOESIS_CANONICAL_PROMPT
 
-    def test_selected_excerpts_are_not_preverified_facts(self):
-        assert "上游筛选后的原文候选" in NOESIS_CANONICAL_PROMPT
-        assert "筛选不等于已核实事实或完成语义拆分" in NOESIS_CANONICAL_PROMPT
+    def test_summarized_input_is_not_preverified_fact(self):
+        assert "输入是第一阶段整理后的叙述" in NOESIS_CANONICAL_PROMPT
+        assert "整理不等于已核实事实或完成语义拆分" in NOESIS_CANONICAL_PROMPT
+        assert "关系表达就是本次要保留的关系" in NOESIS_CANONICAL_PROMPT
         assert "未证实猜测、建议、计划和规范要求不能借 hypothesis 重新准入" in NOESIS_CANONICAL_PROMPT
 
     def test_uncertainty_scope_is_checked_before_admission(self):

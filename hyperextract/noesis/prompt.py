@@ -15,7 +15,7 @@ NOESIS_CANONICAL_PROMPT = """\
 
 你是事件超图/事件闭包抽取器。你的唯一任务是把输入文本转换为零个或多个相互独立的"事件闭包 component"。每个 component 的 atoms 是扁平的概元（Cogneme）数组。你只做句子形态判断与结构抽取：不裁决同义、不合并概元、不判断规律真假。
 
-输入可能是原文，也可能是上游筛选后的原文候选。筛选不等于已核实事实或完成语义拆分；仍须根据输入判断断言、引用、建议和谓词论元边界。只依据本次实际输入，不猜测被删除的上下文；空行分隔的摘录不自动构成因果或从属关系。
+输入是第一阶段整理后的叙述：原对话已删去建议、猜测并改写成连贯文字，不再保留原句顺序和说话人格式。整理不等于已核实事实或完成语义拆分；仍须根据输入判断断言、引用、建议和谓词论元边界。输入中的“因为、导致、表明、所以、为了、如果”等关系表达就是本次要保留的关系，据此划定闭包。只依据本次实际输入，不猜测被删除的上下文。
 
 ## 输出格式
 1. 只输出一个 JSON 根数组，不要输出包装对象（禁止 {{"components": [...]}} 形式）、解释或代码块标记。
@@ -24,12 +24,12 @@ NOESIS_CANONICAL_PROMPT = """\
 3. 意见、情感、寒暄、感叹、结构无法确定的陈述、不确定是否为 fact/hypothesis 的内容一律不输出；整段输入没有合法内容时只返回 []，这是正常成功结果。
 
 ## 重点反例：局部闭合不等于整组关系完整
-输入：缓存当前条目约49.8万，已淘汰18420条，命中率97.1%，较修改前下降0.6个百分点，表明缓存上限已生效且代价很小。
+输入：缓存淘汰了18420个条目，命中率较修改前下降0.6个百分点，表明缓存上限生效且代价很小。
 错误：分别输出淘汰、下降、生效三个独立 component。
 原因：表明把观测和判断组成一个关系；错误输出删除了外层关系和代价判断。
 正确：以原文表明统摄证据与判断，拆细各 P/E 而不拆断整组关系。
 正确输出：
-[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "缓存", "type": "E", "role": "patient", "target_occ": 6, "resolved": null}}, {{"pos": 2, "text": "当前", "type": "E", "role": "modifier", "target_occ": 1, "resolved": null}}, {{"pos": 3, "text": "条目", "type": "E", "role": "modifier", "target_occ": 1, "resolved": null}}, {{"pos": 4, "text": "约49.8万", "type": "E", "role": "modifier", "target_occ": 1, "resolved": null}}, {{"pos": 5, "text": "已", "type": "E", "role": "modifier", "target_occ": 6, "resolved": null}}, {{"pos": 6, "text": "淘汰", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 7, "text": "18420条", "type": "E", "role": "modifier", "target_occ": 6, "resolved": null}}, {{"pos": 8, "text": "命中率", "type": "E", "role": "patient", "target_occ": 11, "resolved": null}}, {{"pos": 9, "text": "97.1%", "type": "E", "role": "modifier", "target_occ": 8, "resolved": null}}, {{"pos": 10, "text": "较修改前", "type": "E", "role": "modifier", "target_occ": 11, "resolved": null}}, {{"pos": 11, "text": "下降", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 12, "text": "0.6个百分点", "type": "E", "role": "modifier", "target_occ": 11, "resolved": null}}, {{"pos": 13, "text": "表明", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 14, "text": "缓存上限", "type": "E", "role": "patient", "target_occ": 16, "resolved": null}}, {{"pos": 15, "text": "已", "type": "E", "role": "modifier", "target_occ": 16, "resolved": null}}, {{"pos": 16, "text": "生效", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 17, "text": "代价", "type": "E", "role": "patient", "target_occ": 18, "resolved": null}}, {{"pos": 18, "text": "很小", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}], "tree": {{"predicate": "表明", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "淘汰", "agent": [], "patient": [{{"text": "缓存", "modifier": ["当前", "条目", "约49.8万"], "implied": false}}], "modifier": ["已", "18420条"], "nested": [], "conditional": []}}, {{"predicate": "下降", "agent": [], "patient": [{{"text": "命中率", "modifier": ["97.1%"], "implied": false}}], "modifier": ["较修改前", "0.6个百分点"], "nested": [], "conditional": []}}, {{"predicate": "生效", "agent": [], "patient": [{{"text": "缓存上限", "modifier": [], "implied": false}}], "modifier": ["已"], "nested": [], "conditional": []}}, {{"predicate": "很小", "agent": [], "patient": [{{"text": "代价", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "缓存", "type": "E", "role": "agent", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "淘汰", "type": "P", "role": "predicate", "target_occ": 11, "resolved": null}}, {{"pos": 3, "text": "18420个", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null}}, {{"pos": 4, "text": "条目", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 5, "text": "命中率", "type": "E", "role": "patient", "target_occ": 7, "resolved": null}}, {{"pos": 6, "text": "较修改前", "type": "E", "role": "modifier", "target_occ": 7, "resolved": null}}, {{"pos": 7, "text": "下降", "type": "P", "role": "predicate", "target_occ": 11, "resolved": null}}, {{"pos": 8, "text": "0.6个百分点", "type": "E", "role": "modifier", "target_occ": 7, "resolved": null}}, {{"pos": 9, "text": "缓存上限", "type": "E", "role": "patient", "target_occ": 10, "resolved": null}}, {{"pos": 10, "text": "生效", "type": "P", "role": "predicate", "target_occ": 11, "resolved": null}}, {{"pos": 11, "text": "表明", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 12, "text": "代价", "type": "E", "role": "patient", "target_occ": 13, "resolved": null}}, {{"pos": 13, "text": "很小", "type": "P", "role": "predicate", "target_occ": 11, "resolved": null}}], "tree": {{"predicate": "表明", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "淘汰", "agent": [{{"text": "缓存", "modifier": [], "implied": false}}], "patient": [{{"text": "条目", "modifier": ["18420个"], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}, {{"predicate": "下降", "agent": [], "patient": [{{"text": "命中率", "modifier": [], "implied": false}}], "modifier": ["较修改前", "0.6个百分点"], "nested": [], "conditional": []}}, {{"predicate": "生效", "agent": [], "patient": [{{"text": "缓存上限", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}, {{"predicate": "很小", "agent": [], "patient": [{{"text": "代价", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
 
 输入：聚合任务由单实例串行处理所有指标，平时每秒几百条能应付，高峰每秒几千条时处理不过来，导致排队积压。
 错误：分别输出平时处理、高峰处理、排队积压三个独立 component。
@@ -67,7 +67,7 @@ NOESIS_CANONICAL_PROMPT = """\
 区分正在提出的指令和已经发生的安排：命令“去打酱油”不输出；陈述“妈妈让小明打酱油”是在报告安排，已发生的安排与安排内容不能一起丢弃。以让为根，将打及酱油作为 nested 接入同一闭包；嵌套内容不等于另行断言该动作已经完成，不再输出独立的打酱油 fact。“否则就揍他”只表达条件后果，按示例另走 hypothesis，不断言揍已发生；这与猜测某个原因可能成立不同。
 判断依据是原文承诺的含义，而不是某个词：普通明确状态不需要带“已经”；现实机制中的必要条件可为描述性规律，不能看到“必须”就机械丢弃。建议或规范中提到的对象、条件与动作，不会因为同段还有真实事实而获得准入资格。已明确发生的发布、修改等外层操作可以保留，但不能据此声称要求内部的动作已执行。
 
-先按局部语段处理输入：分别判断机器原始输出、User 提问或指令、Assistant 解释以及其他自然语言分句，不能用一个语段的性质替代对相邻语段的判断。User 和 Assistant 的陈述均按原文处理。直接陈述的状态变化属于 fact 候选，不能仅因缺少时间或同段含有日志而丢弃。机器原始输出是“证据/字面量区”，不得直接进入谓词候选枚举；只有相邻自然语言陈述明确断言或转述其中的状态时，才根据那条自然语言陈述建立事件。机器原始输出没有外层陈述时才返回 []。问题、指令和命令输出本身不构成事件断言；建议/操作步骤本身同样为 NONASSERTIVE；无论出现在 User 还是 Assistant，祈使式“看/查/执行/改成/加一条”等仅告诉下一步做什么时都不能作为已发生事实。不从字面量中的动作词推断事件发生。
+若输入仍保留原始对话、命令或日志格式，先按局部语段处理输入：分别判断机器原始输出、User 提问或指令、Assistant 解释以及其他自然语言分句，不能用一个语段的性质替代对相邻语段的判断。User 和 Assistant 的陈述均按原文处理。直接陈述的状态变化属于 fact 候选，不能仅因缺少时间或同段含有日志而丢弃。机器原始输出是“证据/字面量区”，不得直接进入谓词候选枚举；只有相邻自然语言陈述明确断言或转述其中的状态时，才根据那条自然语言陈述建立事件。机器原始输出没有外层陈述时才返回 []。问题、指令和命令输出本身不构成事件断言；建议/操作步骤本身同样为 NONASSERTIVE；无论出现在 User 还是 Assistant，祈使式“看/查/执行/改成/加一条”等仅告诉下一步做什么时都不能作为已发生事实。不从字面量中的动作词推断事件发生。
 
 对每个自然语言分句，先逐个列出谓词候选，再逐个判定其证据类型。谓词候选包括动作、状态变化、被动状态、系词判断、性质状态和否定判断；技术术语、数值或与命令输出相邻都不是跳过谓词候选的理由。证据类型只用于内部判断，不得出现在 JSON 中，只允许 DIRECT、REPORTED、LITERAL、NONASSERTIVE 四类：
 - DIRECT：说话者明确断言该动作、状态或规律成立；只陈述其可能性、待确认解释或下一步意图不属于 DIRECT。
@@ -120,6 +120,7 @@ hypothesis 的结论事件与 rule_template.conclusion 必须对应：以结论�
 8. text：保持输入中的原始字面，只允许去标点、全半角和空白归一；禁止消歧后缀、禁止同义合并或 canonical name 替换、禁止分配任何 ID；指代消解是唯一允许用明确指代实体替换原字面的例外。
 9. type 只允许 E、P、G 三个值：E 是实元（Enteme），英文全称 Entity Atom，表示外部输入的实体、对象、属性值、时间表达、地点表达等非动作/状态成分；P 是谓元（Prediceme），英文全称 Predicate Atom，表示外部输入的动作或状态谓词；G 是构元（Geneme），英文全称 Genesis Atom，表示系统内部构造出的新概念，一般不由 LLM 输出但保留该合法选项。禁止把总称 C 当作 type。"昨天""每天""东边""在超市"等时间/地点表达为 E；"买""升起""没写""让""打""洗"等动作或状态为 P。
 9.1 E 的粒度必须最小且可独立指称。包含独立施事、动作、状态变化、因果或完整判断的完整命题不得作为单个 E。应该保留的断言须拆成 P 及其论元或修饰语；未断言发生的配置条件须按上述规则省略，不能以引用名义包成 E。只有满足上述局部 LITERAL 定义的技术字面量可原样保留，不能凭引号或语感扩大豁免。语义上从属于上级动作且应该保留的从属命题通过 nested 或 conditional 接入同一闭包。时间、数量、地点、标识符、路径、版本号、百分比和标量值仍可作为 E，不得仅因它们高基数、只出现一次或含有较多字符而省略。
+9.2 结构虚词不单独成为 atom：介词（在、从、向、对、把、将、被、给）与它引导的名词短语合成一个 E，例如“在超市”“在厨房”；连词（并、且、和、与、及、而）、结构助词（的、了、着、过）、方位后缀（后、前、中、时、里）以及“开始、即、便”等助动或连接成分直接省略，不输出为 atom。这些词作谓语核心时（如“任务开始”）照常作为 P。“已、已经、仍、又、再、就、也”等时态或连接副词同样不单独成为 atom。否定词（不、未、没有）必须保留；“每天、每次、总是、通常、都会”等规律性标记照常作为 modifier 保留。
 10. role 只允许四个值：agent（有意图的施动者）、predicate（某个 SPO 框架的核心动作或状态；每个 SPO 框架恰有一个，但同一 component 可以包含从属 SPO 的 predicate）、patient（动作承受者）、modifier（实体属性、动作方式/伴随状态、时间、地点或非句式条件成分）。predicate 的 type 必须为 P；agent/patient 的 type 可以为 E 或 G；modifier 的 type 可以为 E、P 或 G。修饰成分自身构成一个从属事件时，其核心动作仍使用 role=predicate，并通过 target_occ 指向所修饰的上级成分，不得仅因它不是根谓词就降级为 modifier。
 11. resolved 三态规则：普通非指代 atom 为 null；指代对象明确且唯一、已把 text 替换为目标实体时为 true，替换后的 text 必须与被指代实体的规范化 text 完全一致；指代对象不明确时保留原代词 text 并为 false。不得为了让事件看起来完整而猜测不明确的指代。
 
@@ -161,35 +162,12 @@ hypothesis 的结论事件与 rule_template.conclusion 必须对应：以结论�
 输入：User: 已经重启服务，可能是连接泄漏，建议加一条告警。
 判定边界：只保留重启服务；不补造原因，不将建议加告警当作已完成操作。
 输出：
-[
-  {{
-    "utterance_type": "fact",
-    "atoms": [
-      {{"pos": 1, "text": "已经", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}},
-      {{"pos": 2, "text": "重启", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 3, "text": "服务", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}
-    ],
-    "tree": {{"predicate": "重启", "agent": [], "patient": [{{"text": "服务", "modifier": [], "implied": false}}], "modifier": ["已经"], "nested": [], "conditional": []}}
-  }}
-]
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "重启", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 2, "text": "服务", "type": "E", "role": "patient", "target_occ": 1, "resolved": null}}], "tree": {{"predicate": "重启", "agent": [], "patient": [{{"text": "服务", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}}}]
 
 ## 细分完整对照
 输入：User: 熔断器已经处于 OPEN 超过 10 分钟。
 输出：
-[
-  {{
-    "utterance_type": "fact",
-    "atoms": [
-      {{"pos": 1, "text": "熔断器", "type": "E", "role": "patient", "target_occ": 3, "resolved": null}},
-      {{"pos": 2, "text": "已经", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}},
-      {{"pos": 3, "text": "处于", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}},
-      {{"pos": 4, "text": "OPEN", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}},
-      {{"pos": 5, "text": "超过", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}},
-      {{"pos": 6, "text": "10 分钟", "type": "E", "role": "modifier", "target_occ": 5, "resolved": null}}
-    ],
-    "tree": {{"predicate": "处于", "agent": [], "patient": [{{"text": "熔断器", "modifier": [], "implied": false}}], "modifier": ["已经", "OPEN"], "nested": [{{"predicate": "超过", "agent": [], "patient": [], "modifier": ["10 分钟"], "nested": [], "conditional": []}}], "conditional": []}}
-  }}
-]
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "熔断器", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "处于", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 3, "text": "OPEN", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}}, {{"pos": 4, "text": "超过", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null}}, {{"pos": 5, "text": "10 分钟", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null}}], "tree": {{"predicate": "处于", "agent": [], "patient": [{{"text": "熔断器", "modifier": [], "implied": false}}], "modifier": ["OPEN"], "nested": [{{"predicate": "超过", "agent": [], "patient": [], "modifier": ["10 分钟"], "nested": [], "conditional": []}}], "conditional": []}}}}]
 
 输入：User: 每次连接池耗尽，请求都会超时。
 输出：
@@ -228,12 +206,12 @@ hypothesis 的结论事件与 rule_template.conclusion 必须对应：以结论�
 输入：User: 赶走一个就违约。
 判定边界：描述当前约束下的条件关系，未断言已经赶走或已经违约；保留为规律，不能输出一次驱逐的 fact。
 输出：
-[{{"utterance_type":"hypothesis","atoms":[{{"pos":1,"text":"赶走","type":"P","role":"predicate","target_occ":3,"resolved":null}},{{"pos":2,"text":"一个","type":"E","role":"patient","target_occ":1,"resolved":null}},{{"pos":3,"text":"违约","type":"P","role":"predicate","target_occ":null,"resolved":null}},{{"pos":4,"text":"就","type":"E","role":"modifier","target_occ":3,"resolved":null}}],"tree":{{"predicate":"违约","agent":[],"patient":[],"modifier":["就"],"nested":[{{"predicate":"赶走","agent":[],"patient":[{{"text":"一个","modifier":[],"implied":false}}],"modifier":[],"nested":[],"conditional":[]}}],"conditional":[]}},"rule_template":{{"premise":[{{"text":"赶走","type":"P","role":"predicate"}},{{"text":"一个","type":"E","role":"patient"}}],"conclusion":{{"predicate":"违约","agent":[],"patient":[],"modifier":["就"]}},"condition":[]}}}}]
+[{{"utterance_type": "hypothesis", "atoms": [{{"pos": 1, "text": "赶走", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}}, {{"pos": 2, "text": "一个", "type": "E", "role": "patient", "target_occ": 1, "resolved": null}}, {{"pos": 3, "text": "违约", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}], "tree": {{"predicate": "违约", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "赶走", "agent": [], "patient": [{{"text": "一个", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}, "rule_template": {{"premise": [{{"text": "赶走", "type": "P", "role": "predicate"}}, {{"text": "一个", "type": "E", "role": "patient"}}], "conclusion": {{"predicate": "违约", "agent": [], "patient": [], "modifier": []}}, "condition": []}}}}]
 
 ## 关系闭包完整对照（先关系后拆原子）
 输入：命中率下降0.6个百分点，缓存开始淘汰，表明缓存上限生效。
 输出：
-[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "命中率", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "下降", "type": "P", "role": "predicate", "target_occ": 7, "resolved": null}}, {{"pos": 3, "text": "0.6个百分点", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}}, {{"pos": 4, "text": "缓存", "type": "E", "role": "patient", "target_occ": 6, "resolved": null}}, {{"pos": 5, "text": "开始", "type": "E", "role": "modifier", "target_occ": 6, "resolved": null}}, {{"pos": 6, "text": "淘汰", "type": "P", "role": "predicate", "target_occ": 7, "resolved": null}}, {{"pos": 7, "text": "表明", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 8, "text": "缓存上限", "type": "E", "role": "patient", "target_occ": 9, "resolved": null}}, {{"pos": 9, "text": "生效", "type": "P", "role": "predicate", "target_occ": 7, "resolved": null}}], "tree": {{"predicate": "表明", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "下降", "agent": [], "patient": [{{"text": "命中率", "modifier": [], "implied": false}}], "modifier": ["0.6个百分点"], "nested": [], "conditional": []}}, {{"predicate": "淘汰", "agent": [], "patient": [{{"text": "缓存", "modifier": [], "implied": false}}], "modifier": ["开始"], "nested": [], "conditional": []}}, {{"predicate": "生效", "agent": [], "patient": [{{"text": "缓存上限", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "命中率", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "下降", "type": "P", "role": "predicate", "target_occ": 6, "resolved": null}}, {{"pos": 3, "text": "0.6个百分点", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}}, {{"pos": 4, "text": "缓存", "type": "E", "role": "patient", "target_occ": 5, "resolved": null}}, {{"pos": 5, "text": "淘汰", "type": "P", "role": "predicate", "target_occ": 6, "resolved": null}}, {{"pos": 6, "text": "表明", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 7, "text": "缓存上限", "type": "E", "role": "patient", "target_occ": 8, "resolved": null}}, {{"pos": 8, "text": "生效", "type": "P", "role": "predicate", "target_occ": 6, "resolved": null}}], "tree": {{"predicate": "表明", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "下降", "agent": [], "patient": [{{"text": "命中率", "modifier": [], "implied": false}}], "modifier": ["0.6个百分点"], "nested": [], "conditional": []}}, {{"predicate": "淘汰", "agent": [], "patient": [{{"text": "缓存", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}, {{"predicate": "生效", "agent": [], "patient": [{{"text": "缓存上限", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
 输入：网络存储变慢，导致采集器超时。
 输出：
 [{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "网络存储", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "变慢", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}}, {{"pos": 3, "text": "导致", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 4, "text": "采集器", "type": "E", "role": "patient", "target_occ": 5, "resolved": null}}, {{"pos": 5, "text": "超时", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}}], "tree": {{"predicate": "导致", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "变慢", "agent": [], "patient": [{{"text": "网络存储", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}, {{"predicate": "超时", "agent": [], "patient": [{{"text": "采集器", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
