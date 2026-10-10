@@ -439,61 +439,9 @@ class TestGoldenCases:
 class TestCanonicalPromptTerminology:
     """The latest +1 terminology and three authoritative examples are frozen."""
 
-    def test_uses_cogneme_terms_and_epg_storage_codes(self):
-        assert "概元（Cogneme）" in NOESIS_CANONICAL_PROMPT
-        assert "实元（Enteme）" in NOESIS_CANONICAL_PROMPT
-        assert "谓元（Prediceme）" in NOESIS_CANONICAL_PROMPT
-        assert "构元（Geneme）" in NOESIS_CANONICAL_PROMPT
-        assert "E、P、G" in NOESIS_CANONICAL_PROMPT
-        assert "总称 C 只用于文档和讨论" in NOESIS_CANONICAL_PROMPT
-
-    def test_defines_minimal_entity_granularity_without_dropping_values(self):
-        assert "最小且可独立指称" in NOESIS_CANONICAL_PROMPT
-        assert "完整命题不得作为单个 E" in NOESIS_CANONICAL_PROMPT
-        assert "拆成 P 及其论元或修饰语" in NOESIS_CANONICAL_PROMPT
-        assert "从属命题通过 nested 或 conditional" in NOESIS_CANONICAL_PROMPT
-        assert "时间、数量、地点、标识符、路径、版本号、百分比和标量值仍可作为 E" in NOESIS_CANONICAL_PROMPT
-
-    def test_concrete_observation_does_not_require_an_explicit_time_word(self):
-        assert "不得仅因缺少显式时间词而过滤" in NOESIS_CANONICAL_PROMPT
-        assert "完成态或当前状态的一次具体观察" in NOESIS_CANONICAL_PROMPT
-
-    def test_predicates_are_classified_before_atoms_are_constructed(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert prompt.index("先逐个列出谓词候选") < prompt.index("逐个判定其证据类型")
-        assert prompt.index("逐个判定其证据类型") < prompt.index("先为每个保留的谓词建立 P")
-        assert prompt.index("先为每个保留的谓词建立 P") < prompt.index("再把剩余成分构造成 E")
-        assert "DIRECT、REPORTED、LITERAL、NONASSERTIVE" in prompt
-        assert "每个 DIRECT 或 REPORTED 谓词候选都已有对应的 P" in prompt
-        assert "每个 LITERAL 谓词候选都没有被提升为事实" in prompt
-        assert "完整命题不得作为单个 E" in prompt
-
-    def test_literal_exemption_is_local_to_an_identifiable_payload(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "引用豁免只作用于可明确定位的字面量范围" in prompt
-        assert "前面出现命令或日志，不会使后续自然语言陈述自动变成 LITERAL" in prompt
-        assert "普通陈述不能仅因包含技术术语、数值或状态词而使用引用豁免" in prompt
-
-    def test_contrastive_diagnosis_keeps_the_positive_state_predicate(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "否定前项不能使转折后的肯定状态消失" in prompt
-        assert "“被阻塞”“等”均为 DIRECT" in prompt
-
-    def test_standalone_machine_error_line_is_literal(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "程序名、错误级别、错误码和消息" in prompt
-        assert "整行均为 LITERAL 并返回 []" in prompt
-        assert "消息中的 changed、failed 或其他动作词" in prompt
-
-    def test_quoted_diagnostics_do_not_create_unasserted_events(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "机器原始输出没有外层陈述时才返回 []" in prompt
-        assert "不从字面量中的动作词推断事件发生" in prompt
-        assert "只抽取字面量出现这一事件" in prompt
-        assert "保留报告谓词与被报告事件的从属关系" in prompt
-        assert "问题、指令和命令输出本身不构成事件断言" in prompt
-        assert "引号本身不授予 LITERAL 豁免" in prompt
-        assert "直接陈述的状态变化属于 fact 候选" in prompt
+    def test_uses_epg_storage_codes(self):
+        assert "type 只有 E、P、G 三个值" in NOESIS_CANONICAL_PROMPT
+        assert "G 由系统构造，你不要输出" in NOESIS_CANONICAL_PROMPT
 
     def test_contains_the_three_documented_examples(self):
         assert NOESIS_CANONICAL_PROMPT.count("### 示例 ") == 3
@@ -530,130 +478,10 @@ class TestCanonicalPromptTerminology:
         assert '"打酱油"' in NOESIS_CANONICAL_PROMPT
         assert '"NOT 打酱油"' in NOESIS_CANONICAL_PROMPT
 
-    def test_subordinate_predicate_points_to_the_modified_occurrence(self):
-        """An action content clause targets its parent action; attributes target objects."""
-        assert "从属句 predicate 指向它在父句中实际修饰的 agent 或 patient occurrence" in NOESIS_CANONICAL_PROMPT
-        assert "安排的动作内容指向安排谓词" in NOESIS_CANONICAL_PROMPT
-        assert "从属句 predicate 指向上级 SPO 的核心 predicate" not in NOESIS_CANONICAL_PROMPT
-
     def test_examples_keep_confirmed_target_and_resolved_contract(self):
         assert '"text": "打", "type": "P", "role": "predicate", "target_occ": 2, "resolved": null' in NOESIS_CANONICAL_PROMPT
         assert '"text": "小明", "modifier": [], "implied": true' in NOESIS_CANONICAL_PROMPT
         assert '"text": "小明", "type": "E", "role": "patient", "target_occ": 2, "resolved": true' in NOESIS_CANONICAL_PROMPT
-
-    def test_reported_arrangement_content_is_not_a_completed_child_action(self):
-        assert "已发生的安排与安排内容不能一起丢弃" in NOESIS_CANONICAL_PROMPT
-        assert "嵌套内容不等于另行断言该动作已经完成" in NOESIS_CANONICAL_PROMPT
-
-    def test_explicitly_splits_coordinate_predicates_even_with_shared_context(self):
-        assert (
-            "相同对象、时间、话题、相邻出现或纯时间先后不构成从属关系"
-            in NOESIS_CANONICAL_PROMPT
-        )
-        assert "才将纯并列动作分别输出" in NOESIS_CANONICAL_PROMPT
-
-    def test_explicit_relations_take_precedence_over_clause_boundaries(self):
-        assert "不得先给每个谓词分配 component" in NOESIS_CANONICAL_PROMPT
-        assert "独立成句不等于独立事件" in NOESIS_CANONICAL_PROMPT
-        assert "不为减少 component 数量制造关系" in NOESIS_CANONICAL_PROMPT
-        assert "仅将语义互不依赖的独立事件拆成不同 component" in NOESIS_CANONICAL_PROMPT
-        assert "共享实体本身既不能证明合并，也不能证明拆分" in NOESIS_CANONICAL_PROMPT
-        assert "真实从属的动作、状态、内容或证据事件" in NOESIS_CANONICAL_PROMPT
-        assert "不额外输出聚合副本" in NOESIS_CANONICAL_PROMPT
-
-    def test_summarized_input_is_not_preverified_fact(self):
-        assert "输入是第一阶段整理后的叙述" in NOESIS_CANONICAL_PROMPT
-        assert "整理不等于已核实事实或完成语义拆分" in NOESIS_CANONICAL_PROMPT
-        assert "关系表达就是本次要保留的关系" in NOESIS_CANONICAL_PROMPT
-        assert "未证实猜测、建议、计划和规范要求不能借 hypothesis 重新准入" in NOESIS_CANONICAL_PROMPT
-
-    def test_uncertainty_scope_is_checked_before_admission(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "先判定模态的作用域" in prompt
-        assert "不得先删去不确定表达" in prompt
-        assert "不扩散到同句中独立明确陈述的已发生操作" in prompt
-
-    def test_closure_partition_precedes_building_predicate_atoms(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "## 闭包优先的任务顺序" in prompt
-        assert prompt.index("再识别输入已经表达的关系、划定闭包") < prompt.index(
-            "先为每个保留的谓词建立 P"
-        )
-        assert "一个 component 可以有多个 P" in prompt
-        assert "不能因各自能成句或各有谓词而分别输出孤立 component" in prompt
-
-    def test_closure_partition_uses_local_occurrences_not_global_text_uniqueness(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert (
-            "不同 component 独立建立局部 pos，不共享 occurrence；允许重复实体字面"
-            in prompt
-        )
-        assert "明确作为判断依据的多项观察可共同从属该判断" in prompt
-        assert "不为减少 component 数量制造关系" in prompt
-
-    def test_unasserted_configuration_condition_is_omitted_not_literal(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "配置了某个告警、触发或筛选条件，不等于条件已经满足" in prompt
-        assert "只保留已经发生且能独立成立的外层操作、对象和数量" in prompt
-        assert "不得省略明确断言的事件、明确转述或一般规律" in prompt
-
-    def test_recoverable_patient_is_preserved_when_splitting(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "省略的受事在本次输入中明确且唯一" in prompt
-        assert "不能用目的地或体系名称替代受事" in prompt
-        assert "全部应修饰手工证书" in prompt
-
-    def test_admission_precedes_structural_success_and_separates_norms(self):
-        prompt = NOESIS_CANONICAL_PROMPT
-        assert "描述性规律与规范性要求不是同一类" in prompt
-        assert "不能因为能构造合法 atoms/tree 而获得准入资格" in prompt
-        assert "普通明确状态不需要带“已经”" in prompt
-        assert "结论事件的核心谓词作为根" in prompt
-
-    def test_complete_admission_and_split_contrasts_validate(self):
-        rendered = ChatPromptTemplate.from_template(NOESIS_CANONICAL_PROMPT).format(
-            source_text="User: 验证输入。", retry_feedback="无。"
-        )
-        contrasts = rendered.split("## 准入完整对照", 1)[1].split(
-            "## 关系闭包完整对照", 1
-        )[0]
-        outputs = []
-        for section in contrasts.split("输入：")[1:]:
-            source = section.split("输出：", 1)[0].split("判定边界：", 1)[0].strip()
-            raw, _ = json.JSONDecoder().raw_decode(section.split("输出：", 1)[1].lstrip())
-            checked = validate_components(raw, source_text=source)
-            assert not checked.alerts
-            assert [component.model_dump(mode="json") for component in checked.components] == raw
-            outputs.append(raw)
-        assert [len(raw) for raw in outputs] == [0, 0, 1, 1, 1, 0, 0, 0, 1]
-        assert outputs[3][0]["tree"]["nested"][0]["predicate"] == "超过"
-        rule = outputs[4][0]
-        assert rule["tree"]["predicate"] == rule["rule_template"]["conclusion"]["predicate"]
-        assert rule["tree"]["nested"][0]["patient"][0]["text"] == "连接池"
-        assert outputs[-1][0]["tree"]["predicate"] == "违约"
-        assert outputs[-1][0]["rule_template"]["conclusion"]["predicate"] == "违约"
-
-    def test_relation_closure_examples_validate_without_dropping(self):
-        rendered = NOESIS_CANONICAL_PROMPT.format(
-            source_text="验证输入", retry_feedback="无。"
-        )
-        sections = rendered.split("## 重点反例", 1)[1].split("## 闭包优先", 1)[0]
-        sections += rendered.split("## 关系闭包完整对照", 1)[1].split("## 权威示例", 1)[
-            0
-        ]
-        outputs = []
-        for section in sections.split("输入：")[1:]:
-            source = section.split("\n", 1)[0].strip()
-            marker = "正确输出：" if "正确输出：" in section else "输出："
-            raw, _ = json.JSONDecoder().raw_decode(section.split(marker, 1)[1].lstrip())
-            checked = validate_components(raw, source_text=source)
-            assert not checked.alerts
-            assert not checked.retry_needed
-            assert [c.model_dump(mode="json") for c in checked.components] == raw
-            outputs.append(raw)
-        assert [len(raw) for raw in outputs] == [1, 1, 1, 1, 2]
-        assert outputs[0][0]["tree"]["predicate"] == "表明"
-        assert outputs[1][0]["utterance_type"] == "hypothesis"
 
     def test_rendered_examples_validate_and_demonstrate_alignment(self):
         rendered = ChatPromptTemplate.from_template(NOESIS_CANONICAL_PROMPT).format(
@@ -677,3 +505,41 @@ class TestCanonicalPromptTerminology:
         assert [component["utterance_type"] for component in examples[2]] == ["fact", "hypothesis"]
         assert examples[2][0]["atoms"][3]["target_occ"] == 2
         assert examples[2][1]["atoms"][2]["resolved"] is True
+
+    def test_defines_minimal_entity_granularity_without_dropping_values(self):
+        assert "最小且可独立指称" in NOESIS_CANONICAL_PROMPT
+        assert "完整命题不得作为单个 E" in NOESIS_CANONICAL_PROMPT
+        assert "时间、数量、地点、标识符、路径、版本号、百分比和数值都作为 E 保留" in NOESIS_CANONICAL_PROMPT
+
+    def test_relation_words_keep_both_ends_in_one_closure(self):
+        prompt = NOESIS_CANONICAL_PROMPT
+        assert "关系两端必须在同一个 component 里" in prompt
+        assert "它本身是 P，作为这一层的根" in prompt
+        assert "它不输出为 atom；以结果事件的谓词为根" in prompt
+        assert "conclusion 的 predicate 必须等于根谓词" in prompt
+
+    def test_examples_are_positive_only(self):
+        assert "错误：" not in NOESIS_CANONICAL_PROMPT
+        assert "反例" not in NOESIS_CANONICAL_PROMPT
+
+    def test_relation_examples_validate_and_follow_root_rules(self):
+        rendered = ChatPromptTemplate.from_template(NOESIS_CANONICAL_PROMPT).format(
+            source_text="验证输入", retry_feedback="无。"
+        )
+        outputs = []
+        for section in rendered.split("### 关系示例 ")[1:]:
+            source = section.split("输入：", 1)[1].split("\n", 1)[0].strip()
+            raw, _ = json.JSONDecoder().raw_decode(section.split("输出：", 1)[1].lstrip())
+            checked = validate_components(raw, source_text=source)
+            assert not checked.alerts and not checked.retry_needed
+            assert [c.model_dump(mode="json") for c in checked.components] == raw
+            texts = {atom["text"] for component in raw for atom in component["atoms"]}
+            assert not texts & {"所以", "后", "但", "了", "被", "并"}  # connectors and function words never become atoms
+            outputs.append(raw)
+        assert [len(raw) for raw in outputs] == [1, 1, 1, 1, 1, 3]
+        assert [raw[0]["tree"]["predicate"] for raw in outputs] == ["降到", "拦截", "判断为", "造成", "引发", "补"]
+        assert outputs[3][0]["rule_template"]["conclusion"]["predicate"] == "造成"
+        assert outputs[4][0]["tree"]["nested"][0]["predicate"] == "导致"
+        # coordinate actions repeat the shared subject; negation is a modifier, never inside P
+        assert [c["atoms"][0]["text"] for c in outputs[5][:2]] == ["运维组", "运维组"]
+        assert outputs[5][2]["tree"] == {"predicate": "中断", "agent": [], "patient": [{"text": "备份任务", "modifier": [], "implied": False}], "modifier": ["没有"], "nested": [], "conditional": []}
