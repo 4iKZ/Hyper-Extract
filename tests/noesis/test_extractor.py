@@ -515,7 +515,8 @@ class TestCanonicalPromptTerminology:
         prompt = NOESIS_CANONICAL_PROMPT
         assert "关系两端必须在同一个 component 里" in prompt
         assert "它本身是 P，作为这一层的根" in prompt
-        assert "它不输出为 atom；以结果事件的谓词为根" in prompt
+        assert "以结果事件的谓词为根" in prompt
+        assert "连接词本身保留为一个 modifier" in prompt
         assert "conclusion 的 predicate 必须等于根谓词" in prompt
 
     def test_examples_are_positive_only(self):
@@ -533,12 +534,16 @@ class TestCanonicalPromptTerminology:
             checked = validate_components(raw, source_text=source)
             assert not checked.alerts and not checked.retry_needed
             assert [c.model_dump(mode="json") for c in checked.components] == raw
-            texts = {atom["text"] for component in raw for atom in component["atoms"]}
-            assert not texts & {"所以", "后", "但", "了", "被", "并"}  # connectors and function words never become atoms
+            atoms = [atom for component in raw for atom in component["atoms"]]
+            assert not {a["text"] for a in atoms} & {"但", "了", "被", "并"}  # function words never become atoms
+            assert all(a["role"] == "modifier" for a in atoms if a["text"] in {"所以", "后"})  # connectors stay as modifiers
             outputs.append(raw)
         assert [len(raw) for raw in outputs] == [1, 1, 1, 1, 1, 3]
         assert [raw[0]["tree"]["predicate"] for raw in outputs] == ["降到", "拦截", "判断为", "造成", "引发", "补"]
         assert outputs[3][0]["rule_template"]["conclusion"]["predicate"] == "造成"
+        # "后" modifies the antecedent, "所以" the result
+        assert outputs[0][0]["tree"]["nested"][0]["modifier"] == ["后"]
+        assert outputs[1][0]["tree"]["modifier"] == ["所以", "没有"]
         assert outputs[4][0]["tree"]["nested"][0]["predicate"] == "导致"
         # coordinate actions repeat the shared subject; negation is a modifier, never inside P
         assert [c["atoms"][0]["text"] for c in outputs[5][:2]] == ["运维组", "运维组"]
