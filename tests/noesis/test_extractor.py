@@ -384,7 +384,6 @@ class TestExtractorRetry:
         assert [item.model_dump() for item in outcome.components] == components
         assert outcome.alerts == []
 
-
     def test_validator_internal_error_propagates(self, monkeypatch):
         """Only call-level and schema-level failures retry; a validator
         programming error must surface instead of being masked as an
@@ -547,17 +546,20 @@ class TestCanonicalPromptTerminology:
         assert "嵌套内容不等于另行断言该动作已经完成" in NOESIS_CANONICAL_PROMPT
 
     def test_explicitly_splits_coordinate_predicates_even_with_shared_context(self):
-        assert "共享同一主语、时间或语境" in NOESIS_CANONICAL_PROMPT
-        assert "并列且互不从属" in NOESIS_CANONICAL_PROMPT
+        assert (
+            "相同对象、时间、话题、相邻出现或纯时间先后不构成从属关系"
+            in NOESIS_CANONICAL_PROMPT
+        )
+        assert "才将纯并列动作分别输出" in NOESIS_CANONICAL_PROMPT
 
     def test_explicit_relations_take_precedence_over_clause_boundaries(self):
-        assert "先按真实关系确定闭包，再按分句组织谓词" in NOESIS_CANONICAL_PROMPT
-        assert "独立的语法分句不等于独立的语义事件" in NOESIS_CANONICAL_PROMPT
-        assert "不得以相邻、同一对象或合理猜测作为挂接依据" in NOESIS_CANONICAL_PROMPT
-        assert "必须拆成多个 component" in NOESIS_CANONICAL_PROMPT
-        assert "共享主语或同时发生本身不构成从属关系" in NOESIS_CANONICAL_PROMPT
-        assert "论元、修饰事件或条件事件" in NOESIS_CANONICAL_PROMPT
-        assert "不得再额外输出包含这些并列动作的聚合 component" in NOESIS_CANONICAL_PROMPT
+        assert "不得先给每个谓词分配 component" in NOESIS_CANONICAL_PROMPT
+        assert "独立成句不等于独立事件" in NOESIS_CANONICAL_PROMPT
+        assert "不为减少 component 数量制造关系" in NOESIS_CANONICAL_PROMPT
+        assert "仅将语义互不依赖的独立事件拆成不同 component" in NOESIS_CANONICAL_PROMPT
+        assert "共享实体本身既不能证明合并，也不能证明拆分" in NOESIS_CANONICAL_PROMPT
+        assert "真实从属的动作、状态、内容或证据事件" in NOESIS_CANONICAL_PROMPT
+        assert "不额外输出聚合副本" in NOESIS_CANONICAL_PROMPT
 
     def test_selected_excerpts_are_not_preverified_facts(self):
         assert "上游筛选后的原文候选" in NOESIS_CANONICAL_PROMPT
@@ -573,15 +575,20 @@ class TestCanonicalPromptTerminology:
     def test_closure_partition_precedes_building_predicate_atoms(self):
         prompt = NOESIS_CANONICAL_PROMPT
         assert "## 闭包优先的任务顺序" in prompt
-        assert prompt.index("先划定闭包边界") < prompt.index("先为每个保留的谓词建立 P")
-        assert "唯一根谓词不等于只有一个 P" in prompt
-        assert "不能把从属分句拆成无关 component" in prompt
+        assert prompt.index("再识别输入已经表达的关系、划定闭包") < prompt.index(
+            "先为每个保留的谓词建立 P"
+        )
+        assert "一个 component 可以有多个 P" in prompt
+        assert "不能因各自能成句或各有谓词而分别输出孤立 component" in prompt
 
     def test_closure_partition_uses_local_occurrences_not_global_text_uniqueness(self):
         prompt = NOESIS_CANONICAL_PROMPT
-        assert "不共享同一个 occurrence，并不禁止相同实体字面" in prompt
-        assert "不能把同一次观察的证据与结论仅因各有谓词就机械拆开" in prompt
-        assert "不为减少 component 数量制造从属关系" in prompt
+        assert (
+            "不同 component 独立建立局部 pos，不共享 occurrence；允许重复实体字面"
+            in prompt
+        )
+        assert "明确作为判断依据的多项观察可共同从属该判断" in prompt
+        assert "不为减少 component 数量制造关系" in prompt
 
     def test_unasserted_configuration_condition_is_omitted_not_literal(self):
         prompt = NOESIS_CANONICAL_PROMPT
@@ -606,7 +613,9 @@ class TestCanonicalPromptTerminology:
         rendered = ChatPromptTemplate.from_template(NOESIS_CANONICAL_PROMPT).format(
             source_text="User: 验证输入。", retry_feedback="无。"
         )
-        contrasts = rendered.split("## 准入完整对照", 1)[1].split("## 权威示例", 1)[0]
+        contrasts = rendered.split("## 准入完整对照", 1)[1].split(
+            "## 关系闭包完整对照", 1
+        )[0]
         outputs = []
         for section in contrasts.split("输入：")[1:]:
             source = section.split("输出：", 1)[0].split("判定边界：", 1)[0].strip()
@@ -622,6 +631,28 @@ class TestCanonicalPromptTerminology:
         assert rule["tree"]["nested"][0]["patient"][0]["text"] == "连接池"
         assert outputs[-1][0]["tree"]["predicate"] == "违约"
         assert outputs[-1][0]["rule_template"]["conclusion"]["predicate"] == "违约"
+
+    def test_relation_closure_examples_validate_without_dropping(self):
+        rendered = NOESIS_CANONICAL_PROMPT.format(
+            source_text="验证输入", retry_feedback="无。"
+        )
+        sections = rendered.split("## 重点反例", 1)[1].split("## 闭包优先", 1)[0]
+        sections += rendered.split("## 关系闭包完整对照", 1)[1].split("## 权威示例", 1)[
+            0
+        ]
+        outputs = []
+        for section in sections.split("输入：")[1:]:
+            source = section.split("\n", 1)[0].strip()
+            marker = "正确输出：" if "正确输出：" in section else "输出："
+            raw, _ = json.JSONDecoder().raw_decode(section.split(marker, 1)[1].lstrip())
+            checked = validate_components(raw, source_text=source)
+            assert not checked.alerts
+            assert not checked.retry_needed
+            assert [c.model_dump(mode="json") for c in checked.components] == raw
+            outputs.append(raw)
+        assert [len(raw) for raw in outputs] == [1, 1, 1, 1, 2]
+        assert outputs[0][0]["tree"]["predicate"] == "表明"
+        assert outputs[1][0]["utterance_type"] == "hypothesis"
 
     def test_rendered_examples_validate_and_demonstrate_alignment(self):
         rendered = ChatPromptTemplate.from_template(NOESIS_CANONICAL_PROMPT).format(

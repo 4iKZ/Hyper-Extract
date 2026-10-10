@@ -39,11 +39,11 @@ def test_production_prompt_matches_approved_version():
     from hyperextract.noesis.summary import SUMMARY_PROMPT
 
     assert hashlib.sha256(SUMMARY_PROMPT.encode()).hexdigest() == (
-        "30c9a298b66b7d3a0d42616cdd68c428beeb77fdcfdce46f1dbd70e5a42ad05a"
+        "299ece48ba7f7bf10a9c25434b0c3f9dc3e98de6aadf8a5caf812be1d4f64fff"
     )
 
 
-def test_production_summarizer_uses_approved_prompt_and_max_thinking():
+def test_production_summarizer_uses_approved_prompt_and_high_thinking():
     from hyperextract.noesis import create_noesis_summarizer
     from hyperextract.noesis.summary import SUMMARY_PROMPT
 
@@ -55,7 +55,7 @@ def test_production_summarizer_uses_approved_prompt_and_max_thinking():
     assert client.parameters[0] == {
         "response_format": {"type": "json_object"},
         "extra_body": {"thinking": {"type": "enabled"}},
-        "reasoning_effort": "max",
+        "reasoning_effort": "high",
         "max_tokens": 131072,
         "timeout": 900,
     }
@@ -124,7 +124,11 @@ def test_empty_summary_is_success_not_retry():
 
 def test_he_json_mode_does_not_require_server_json_schema():
     from hyperextract.noesis import create_noesis_extractor
+    from hyperextract.noesis.prompt import NOESIS_CANONICAL_PROMPT
 
     client = SummaryLLM(response="[]")
     assert create_noesis_extractor(llm_client=client, json_mode=True)("整理文本") == []
     assert client.parameters[0] == {"response_format": {"type": "json_object"}}
+    assert client.messages[0][0].content == NOESIS_CANONICAL_PROMPT.format(
+        source_text="整理文本", retry_feedback="无。"
+    )

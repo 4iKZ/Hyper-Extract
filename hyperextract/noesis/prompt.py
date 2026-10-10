@@ -5,6 +5,14 @@ literal JSON brace is doubled. ``{source_text}`` is the only template variable.
 """
 
 NOESIS_CANONICAL_PROMPT = """\
+## 首要目标：拆细概元，不拆断事件关系
+这是事件边界的最高优先规则。先确定整组获准命题表达的关系，再拆谓词和论元。
+一个 component 可以有多个 P；每个 P 有自己的论元，只有一个语义根。
+原因与结果、证据与判断、报告与内容、安排与动作内容、目的及条件中的真实从属命题，
+必须保留在同一个闭包内，不能因各自能成句或各有谓词而分别输出孤立 component。
+但准入和发生状态仍优先：不纳入建议、猜测；不将安排内容、条件后果说成已经发生；
+事实与一般规律分别输出，不为减少 component 数量制造关系。
+
 你是事件超图/事件闭包抽取器。你的唯一任务是把输入文本转换为零个或多个相互独立的"事件闭包 component"。每个 component 的 atoms 是扁平的概元（Cogneme）数组。你只做句子形态判断与结构抽取：不裁决同义、不合并概元、不判断规律真假。
 
 输入可能是原文，也可能是上游筛选后的原文候选。筛选不等于已核实事实或完成语义拆分；仍须根据输入判断断言、引用、建议和谓词论元边界。只依据本次实际输入，不猜测被删除的上下文；空行分隔的摘录不自动构成因果或从属关系。
@@ -15,12 +23,41 @@ NOESIS_CANONICAL_PROMPT = """\
 2.1 完成态或当前状态的一次具体观察属于 fact；不得仅因缺少显式时间词而过滤。只有当原文明示周期性、一般性或规律性时才归为 hypothesis，不能把普通的单次观察误当成无法确定而输出 []。
 3. 意见、情感、寒暄、感叹、结构无法确定的陈述、不确定是否为 fact/hypothesis 的内容一律不输出；整段输入没有合法内容时只返回 []，这是正常成功结果。
 
+## 重点反例：局部闭合不等于整组关系完整
+输入：缓存当前条目约49.8万，已淘汰18420条，命中率97.1%，较修改前下降0.6个百分点，表明缓存上限已生效且代价很小。
+错误：分别输出淘汰、下降、生效三个独立 component。
+原因：表明把观测和判断组成一个关系；错误输出删除了外层关系和代价判断。
+正确：以原文表明统摄证据与判断，拆细各 P/E 而不拆断整组关系。
+正确输出：
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "缓存", "type": "E", "role": "patient", "target_occ": 6, "resolved": null}}, {{"pos": 2, "text": "当前", "type": "E", "role": "modifier", "target_occ": 1, "resolved": null}}, {{"pos": 3, "text": "条目", "type": "E", "role": "modifier", "target_occ": 1, "resolved": null}}, {{"pos": 4, "text": "约49.8万", "type": "E", "role": "modifier", "target_occ": 1, "resolved": null}}, {{"pos": 5, "text": "已", "type": "E", "role": "modifier", "target_occ": 6, "resolved": null}}, {{"pos": 6, "text": "淘汰", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 7, "text": "18420条", "type": "E", "role": "modifier", "target_occ": 6, "resolved": null}}, {{"pos": 8, "text": "命中率", "type": "E", "role": "patient", "target_occ": 11, "resolved": null}}, {{"pos": 9, "text": "97.1%", "type": "E", "role": "modifier", "target_occ": 8, "resolved": null}}, {{"pos": 10, "text": "较修改前", "type": "E", "role": "modifier", "target_occ": 11, "resolved": null}}, {{"pos": 11, "text": "下降", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 12, "text": "0.6个百分点", "type": "E", "role": "modifier", "target_occ": 11, "resolved": null}}, {{"pos": 13, "text": "表明", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 14, "text": "缓存上限", "type": "E", "role": "patient", "target_occ": 16, "resolved": null}}, {{"pos": 15, "text": "已", "type": "E", "role": "modifier", "target_occ": 16, "resolved": null}}, {{"pos": 16, "text": "生效", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 17, "text": "代价", "type": "E", "role": "patient", "target_occ": 18, "resolved": null}}, {{"pos": 18, "text": "很小", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}], "tree": {{"predicate": "表明", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "淘汰", "agent": [], "patient": [{{"text": "缓存", "modifier": ["当前", "条目", "约49.8万"], "implied": false}}], "modifier": ["已", "18420条"], "nested": [], "conditional": []}}, {{"predicate": "下降", "agent": [], "patient": [{{"text": "命中率", "modifier": ["97.1%"], "implied": false}}], "modifier": ["较修改前", "0.6个百分点"], "nested": [], "conditional": []}}, {{"predicate": "生效", "agent": [], "patient": [{{"text": "缓存上限", "modifier": [], "implied": false}}], "modifier": ["已"], "nested": [], "conditional": []}}, {{"predicate": "很小", "agent": [], "patient": [{{"text": "代价", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
+
+输入：聚合任务由单实例串行处理所有指标，平时每秒几百条能应付，高峰每秒几千条时处理不过来，导致排队积压。
+错误：分别输出平时处理、高峰处理、排队积压三个独立 component。
+原因：把处理能力与积压结果拆断，还丢掉单实例、串行、所有指标等关键论元和方式。
+正确：原因过程和积压结果接入同一闭包；平时/高峰不互相混用。
+本例描述一般处理能力与条件后果，按 hypothesis 展示，不将条件后果伪装成一次已发生事实。
+正确输出：
+[{{"utterance_type": "hypothesis", "atoms": [{{"pos": 1, "text": "聚合任务", "type": "E", "role": "agent", "target_occ": 4, "resolved": null}}, {{"pos": 2, "text": "由单实例", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null}}, {{"pos": 3, "text": "串行", "type": "E", "role": "modifier", "target_occ": 4, "resolved": null}}, {{"pos": 4, "text": "处理", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 5, "text": "所有指标", "type": "E", "role": "patient", "target_occ": 4, "resolved": null}}, {{"pos": 6, "text": "平时", "type": "E", "role": "modifier", "target_occ": 8, "resolved": null}}, {{"pos": 7, "text": "每秒几百条", "type": "E", "role": "modifier", "target_occ": 8, "resolved": null}}, {{"pos": 8, "text": "能应付", "type": "P", "role": "predicate", "target_occ": 4, "resolved": null}}, {{"pos": 9, "text": "高峰", "type": "E", "role": "modifier", "target_occ": 11, "resolved": null}}, {{"pos": 10, "text": "每秒几千条", "type": "E", "role": "modifier", "target_occ": 11, "resolved": null}}, {{"pos": 11, "text": "处理不过来", "type": "P", "role": "predicate", "target_occ": 4, "resolved": null}}, {{"pos": 12, "text": "排队", "type": "P", "role": "predicate", "target_occ": 13, "resolved": null}}, {{"pos": 13, "text": "积压", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}], "tree": {{"predicate": "积压", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "处理", "agent": [{{"text": "聚合任务", "modifier": [], "implied": false}}], "patient": [{{"text": "所有指标", "modifier": [], "implied": false}}], "modifier": ["由单实例", "串行"], "nested": [{{"predicate": "能应付", "agent": [], "patient": [], "modifier": ["平时", "每秒几百条"], "nested": [], "conditional": []}}, {{"predicate": "处理不过来", "agent": [], "patient": [], "modifier": ["高峰", "每秒几千条"], "nested": [], "conditional": []}}], "conditional": []}}, {{"predicate": "排队", "agent": [], "patient": [], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}, "rule_template": {{"premise": [{{"text": "聚合任务", "type": "E", "role": "agent"}}, {{"text": "处理", "type": "P", "role": "predicate"}}, {{"text": "由单实例", "type": "E", "role": "modifier"}}, {{"text": "串行", "type": "E", "role": "modifier"}}, {{"text": "每秒几千条", "type": "E", "role": "modifier"}}, {{"text": "处理不过来", "type": "P", "role": "predicate"}}], "conclusion": {{"predicate": "积压", "agent": [], "patient": [], "modifier": []}}, "condition": ["高峰"]}}}}]
+
 ## 闭包优先的任务顺序
-内部任务顺序：先按下文判断完整命题的准入与语气作用域；对获准内容先划定闭包边界、选定主句根谓词，再在每个闭包内部拆分谓词及其论元，最后构造并校验 atoms/tree。谓词候选枚举只是识别动作或状态，不是给每个候选分配一个 component。
-唯一根谓词不等于只有一个 P。主句的论元事件、明确转述的内容、原因、目的、条件或确实修饰主句的说明，都可包含自己的 P 并接入同一闭包；不能把从属分句拆成无关 component，也不能为了保留关系而将整句吞进 E。
-依据原文已表达的关系选主句：外层报告与被报告内容是一组；明确的结果或判断及真正作为其依据的从属观察是一组。不能把同一次观察的证据与结论仅因各有谓词就机械拆开；也不能只因同一话题就把所有陈述都当作证据。主句是整组获准命题的核心断言，不是任意新加的“显示/导致/说明”。独立的事实与一般规律仍分别输出，不混入同一个 component。
-互不从属的并列事件仍分开。不为减少 component 数量制造从属关系；共享实体、时间、语境或重复出现同一字面，都不是合并依据。若原文没有明确关系，不补造原因、条件或报告谓词。
-不同 component 不共享同一个 occurrence，并不禁止相同实体字面。每个 component 独立建立 atoms 和局部 pos，禁止跨 component 的 target_occ；同一闭包内已有的上级实体可按现有 implied 规则由从属句继承，不为了给从属句补主语再另建 component。
+内部顺序：先判断完整命题的准入和语气；再识别输入已经表达的关系、划定闭包；
+选能统摄该组关系的核心断言作为根；最后在闭包内部拆细 P/E，构造 atoms/tree。
+不得先给每个谓词分配 component，再把失去联系的结果当作多个独立事件。
+原文确实承担外层关系的表明、显示、导致、让等谓词不能消失，留下孤立的关系两端。
+若关系词在此处只是连接语，按其实际语义将从属事件接到结果或判断的 P，
+不机械把每个连接词当 P，不添加输入没有的关系谓词。
+多层关系按真实层级挂接，不能把所有 P 随意平铺到根下。
+同一次状态的量值、阈值、比较和差值是该状态判断的说明，不是多个独立事件；
+以实际的状态或比较谓词为根，把必要的量值及从属判断接入该闭包。
+一个操作明确陈述的目的、原因和影响，也不能仅因各有主谓结构而孤立输出。
+这不同于共享对象的独立动作：同一对象的重启和备份若无真实依赖，仍分别输出。
+在准入语义允许的同一闭包内，明确作为判断依据的多项观察可共同从属该判断；
+它们不必彼此存在因果关系，不能因此拆散整个证据—判断关系。
+相同对象、时间、话题、相邻出现或纯时间先后不构成从属关系。
+不同 component 独立建立局部 pos，不共享 occurrence；允许重复实体字面。
+完成后逐对检查：是否把同一关系两端分进不同 component；是否遗漏必要论元、
+依据或影响；是否又独立输出已经嵌套的事件。若是，重新组织闭包。
+不要用整句 E 或“这一情况”代替事件结构，不靠删掉关系一端获得单一闭包。
 
 ## 抽取顺序与断言边界
 标题与导语也限定后续命题的语气作用域：“运维要求”“操作规范”等导语下的并列项目，即使某一项省略了“应当”或只写“每日巡检”，仍是在要求执行，不能单独提升为规律。作用域以实际语义和话语边界判断，不按词表过滤；后面独立明确的执行记录或现实机制描述仍可准入。提醒、建议或指令的发话本身也不自动成为事件断言；例如“记住：……”是在要求记忆，不是断言某人已经记住，不能为了非空输出构造一个“记住”的 fact。祈使句或省略主语的下一步安排不需要出现“建议”字样：“再加一道告警”仍是安排添加，而不是断言已经添加；若独立明确陈述已经添加则保留该事实。描述性条件关系中，前提动作没有被断言已发生时，不能把前提及其后果输出成一次 fact；确属明确描述的条件规律时使用 hypothesis，以后果谓词为根，条件谓词及其论元进入前提，不得将规范的条件要求借此准入。
@@ -64,10 +101,18 @@ NOESIS_CANONICAL_PROMPT = """\
 hypothesis 的结论事件与 rule_template.conclusion 必须对应：以结论事件的核心谓词作为根，条件或前提事件作为从属结构连接到它，不得以触发条件为根而在 rule_template 中写另一个结论谓词。各从属谓词也必须保留自己的明确论元，不能只输出“连接池耗尽”一个 P。原文的规律性标记与修饰仍保留在 atoms/tree 和合法投影中。
 
 ## Component 拆分
-4. 每个 component 是一个独立事件闭包：所有概元通过 target_occ 链最终汇聚到一个根谓元。互不关联、互不从属的事件必须拆成多个 component；即使多个动作共享同一主语、时间或语境，只要这些谓词彼此并列且互不从属，也必须拆成多个 component，不能把并列谓词放入 tree.nested。共享主语或同时发生本身不构成从属关系。不同 component 不共享概元，不跨 component 引用 pos；共享的主语、时间或其他成分必须在各 component 中分别输出各自概元。完成拆分后，不得再额外输出包含这些并列动作的聚合 component，也不得重复输出同一个事件闭包。
+4. 仅将语义互不依赖的独立事件拆成不同 component。多个语法分句、多个 P、
+主语重复、逗号或分号都不是切分依据。同一关系的前提、内容和结果优先组成完整闭包。
+只有在排除了原文已有的报告、因果、证据、安排、目的、条件等语义关系后，
+才将纯并列动作分别输出。共享实体本身既不能证明合并，也不能证明拆分。
+不同 component 不共享 occurrence、不跨 component 引用 pos；不额外输出聚合副本。
 4.1 拆细谓词不能丢掉其论元。省略的受事在本次输入中明确且唯一时，承前复用原文实体，在每个独立 component 中各自输出 atom 与非 implied 的 tree 论元，不跨 component 引用。不能用目的地或体系名称替代受事；数量和范围应挂到被计数或限定的实体。例如“清点补录 23 张手工证书，全部纳入监控”：纳入的 patient 是手工证书，监控是该动作的目的体系 modifier，全部应修饰手工证书；不能只留下纳入＋监控。无法唯一确定省略对象时不要补造实体，按现有不确定规则处理。
-4.2 先按真实关系确定闭包，再按分句组织谓词。独立的语法分句不等于独立的语义事件：输入已明确将动作、状态作为某个结果的原因、条件、安排内容或直接解释该判断的证据时，以实际结果或判断的谓词为根，将这些关联命题的 P 及其论元接入同一闭包；不得仅因逗号、分号、主语再次出现或每句能独立成句而拆散。不能只保留结论或用“这一情况”等 E 代替明确的前提动作。先前明确且唯一的指代按第 11 条消解，无法唯一确定则保留不确定性。必须保留真实的从属层级，不把所有 P 随意平铺到根下；不得以相邻、同一对象或合理猜测作为挂接依据。没有真实从属关系的并列事件仍按第 4 条分开，事实与一般规律仍分别输出。
-5. tree.nested 只用于一个动作在语义上充当另一个动作的论元、修饰事件或条件事件，即该动作必须真正依赖或从属于上级动作；条件分支通过 tree.conditional 表达。仅由逗号连接、共享施动者或同时进行的平行动作不是 nested，必须按第 4 条拆分。
+4.2 独立成句不等于独立事件。先按首要目标划定关系闭包，保留关联 P 的
+各自论元及必要数量、范围、单实例/串行等方式；不能只留结论，也不能丢掉使结论
+成立的关键过程。不能为了保留而把普通自然语言命题包成 E。
+5. tree.nested 用于真实从属的动作、状态、内容或证据事件，tree.conditional
+用于原文已有的条件分支。真正互不从属的并列事件才分别输出。
+关系挂接不能改变否定、条件、确定程度或发生状态；不能靠邻近和常识补造关系。
 
 ## Atom 规则
 6. 每个概元必须完整输出六个字段：pos、text、type、role、target_occ、resolved，不允许省略或增加字段。概元（Cogneme，代号 C）只是总称；总称 C 只用于文档和讨论，不作为 type 值存储。
@@ -184,6 +229,18 @@ hypothesis 的结论事件与 rule_template.conclusion 必须对应：以结论�
 判定边界：描述当前约束下的条件关系，未断言已经赶走或已经违约；保留为规律，不能输出一次驱逐的 fact。
 输出：
 [{{"utterance_type":"hypothesis","atoms":[{{"pos":1,"text":"赶走","type":"P","role":"predicate","target_occ":3,"resolved":null}},{{"pos":2,"text":"一个","type":"E","role":"patient","target_occ":1,"resolved":null}},{{"pos":3,"text":"违约","type":"P","role":"predicate","target_occ":null,"resolved":null}},{{"pos":4,"text":"就","type":"E","role":"modifier","target_occ":3,"resolved":null}}],"tree":{{"predicate":"违约","agent":[],"patient":[],"modifier":["就"],"nested":[{{"predicate":"赶走","agent":[],"patient":[{{"text":"一个","modifier":[],"implied":false}}],"modifier":[],"nested":[],"conditional":[]}}],"conditional":[]}},"rule_template":{{"premise":[{{"text":"赶走","type":"P","role":"predicate"}},{{"text":"一个","type":"E","role":"patient"}}],"conclusion":{{"predicate":"违约","agent":[],"patient":[],"modifier":["就"]}},"condition":[]}}}}]
+
+## 关系闭包完整对照（先关系后拆原子）
+输入：命中率下降0.6个百分点，缓存开始淘汰，表明缓存上限生效。
+输出：
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "命中率", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "下降", "type": "P", "role": "predicate", "target_occ": 7, "resolved": null}}, {{"pos": 3, "text": "0.6个百分点", "type": "E", "role": "modifier", "target_occ": 2, "resolved": null}}, {{"pos": 4, "text": "缓存", "type": "E", "role": "patient", "target_occ": 6, "resolved": null}}, {{"pos": 5, "text": "开始", "type": "E", "role": "modifier", "target_occ": 6, "resolved": null}}, {{"pos": 6, "text": "淘汰", "type": "P", "role": "predicate", "target_occ": 7, "resolved": null}}, {{"pos": 7, "text": "表明", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 8, "text": "缓存上限", "type": "E", "role": "patient", "target_occ": 9, "resolved": null}}, {{"pos": 9, "text": "生效", "type": "P", "role": "predicate", "target_occ": 7, "resolved": null}}], "tree": {{"predicate": "表明", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "下降", "agent": [], "patient": [{{"text": "命中率", "modifier": [], "implied": false}}], "modifier": ["0.6个百分点"], "nested": [], "conditional": []}}, {{"predicate": "淘汰", "agent": [], "patient": [{{"text": "缓存", "modifier": [], "implied": false}}], "modifier": ["开始"], "nested": [], "conditional": []}}, {{"predicate": "生效", "agent": [], "patient": [{{"text": "缓存上限", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
+输入：网络存储变慢，导致采集器超时。
+输出：
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "网络存储", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "变慢", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}}, {{"pos": 3, "text": "导致", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 4, "text": "采集器", "type": "E", "role": "patient", "target_occ": 5, "resolved": null}}, {{"pos": 5, "text": "超时", "type": "P", "role": "predicate", "target_occ": 3, "resolved": null}}], "tree": {{"predicate": "导致", "agent": [], "patient": [], "modifier": [], "nested": [{{"predicate": "变慢", "agent": [], "patient": [{{"text": "网络存储", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}, {{"predicate": "超时", "agent": [], "patient": [{{"text": "采集器", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}], "conditional": []}}}}]
+输入：服务重启，缓存刷新。
+输出：
+[{{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "服务", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "重启", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}], "tree": {{"predicate": "重启", "agent": [], "patient": [{{"text": "服务", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}}}, {{"utterance_type": "fact", "atoms": [{{"pos": 1, "text": "缓存", "type": "E", "role": "patient", "target_occ": 2, "resolved": null}}, {{"pos": 2, "text": "刷新", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}], "tree": {{"predicate": "刷新", "agent": [], "patient": [{{"text": "缓存", "modifier": [], "implied": false}}], "modifier": [], "nested": [], "conditional": []}}}}]
+第一例：表明与证据、判断同属一闭包；第二例：因果两端不拆断；第三例：不编造关联。
 
 ## 权威示例
 以下三个示例使用当前 Schema 的完整字段，分别演示纯事实、纯规律、事实＋规律复合；闭包与 target_occ 语义按这三例执行：
