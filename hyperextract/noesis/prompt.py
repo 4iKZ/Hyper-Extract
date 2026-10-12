@@ -31,7 +31,7 @@ NOESIS_CANONICAL_PROMPT = """\
 13. E 最小且可独立指称。完整命题不得作为单个 E，要拆成 P 及其论元或修饰语。时间、数量、地点、标识符、路径、版本号、百分比和数值都作为 E 保留。
 14. P 只保留输入中最小的动作或状态核心，不吞进施事、受事、时间、数量或被动标记。否定词（不、未、没有）紧挨着动词时和动词合成一个 P（如“不走”“未设置”）；中间隔着其他成分时单独作为 modifier 指向它否定的 P（如“没有被拦截”输出“没有”(E, modifier) 和“拦截”(P)）。否定词绝不能丢，丢了意思就反了。
 15. 结构虚词不单独成为 atom：介词（在、从、向、对、把、将、给）可以和后面的名词合成一个 E（如“在超市”），也可以省略（如“从东边”只保留“东边”）；连词（但、并、且、和、与、及、而）、助词（的、了、着、过）、“被”、“已、已经、仍、又、再、就、也”直接省略；方位词（前、中、时、里）跟在事件后面时省略；“后”跟在事件后面时是连接词，按第 3 条保留为 modifier；方位词跟在时间量后面时和时间量合成一个 E（如“一小时后”）。规律标记（每天、每次、都会、会）必须保留为 atom。
-16. role 只有四个值：agent（施动者）、patient（承受者或状态主体）、predicate（动作或状态的核心，type 必须是 P）、modifier（属性、方式、时间、地点、数量、否定、连接词等修饰）。agent 和 patient 的 type 是 E。
+16. role 只有四个值：agent（主动发起动作的施动者）、patient（动作的承受者，以及发生变化或处于某种状态的主体）、predicate（动作或状态的核心，type 必须是 P）、modifier（属性、方式、时间、地点、数量、否定、连接词等修饰）。agent 和 patient 的 type 是 E。没有主动发起者的变化或状态（超时、上涨、恢复、升起），主语一律是 patient（如“接口超时”“太阳升起”）。
 17. resolved：普通 atom 为 null；把代词替换成明确的先行实体时为 true，text 写成该实体；指代不明确时保留原词并为 false。
 
 ## target_occ
@@ -66,9 +66,9 @@ NOESIS_CANONICAL_PROMPT = """\
 
 ### 示例 2：纯规律
 输入：太阳每天从东边升起。
-判定边界：每天描述周期性规律；使用 hypothesis 和 rule_template，不把规律变成一次发生的 fact。
+判定边界：每天描述周期性规律；使用 hypothesis 和 rule_template，不把规律变成一次发生的 fact。太阳没有主动发起升起，是变化的主体，所以是 patient。
 输出：
-[{{"utterance_type": "hypothesis", "atoms": [{{"pos": 1, "text": "太阳", "type": "E", "role": "agent", "target_occ": 3, "resolved": null}}, {{"pos": 2, "text": "每天", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}}, {{"pos": 3, "text": "升起", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 4, "text": "东边", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}}], "tree": {{"predicate": "升起", "agent": [{{"text": "太阳", "modifier": [], "implied": false}}], "patient": [], "modifier": ["每天", "东边"], "nested": [], "conditional": []}}, "rule_template": {{"premise": [{{"text": "太阳", "type": "E", "role": "agent"}}], "conclusion": {{"predicate": "升起", "agent": ["太阳"], "patient": [], "modifier": ["每天", "东边"]}}, "condition": []}}}}]
+[{{"utterance_type": "hypothesis", "atoms": [{{"pos": 1, "text": "太阳", "type": "E", "role": "patient", "target_occ": 3, "resolved": null}}, {{"pos": 2, "text": "每天", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}}, {{"pos": 3, "text": "升起", "type": "P", "role": "predicate", "target_occ": null, "resolved": null}}, {{"pos": 4, "text": "东边", "type": "E", "role": "modifier", "target_occ": 3, "resolved": null}}], "tree": {{"predicate": "升起", "agent": [], "patient": [{{"text": "太阳", "modifier": [], "implied": false}}], "modifier": ["每天", "东边"], "nested": [], "conditional": []}}, "rule_template": {{"premise": [{{"text": "太阳", "type": "E", "role": "patient"}}], "conclusion": {{"predicate": "升起", "agent": [], "patient": ["太阳"], "modifier": ["每天", "东边"]}}, "condition": []}}}}]
 
 ### 示例 3：事实＋规律复合
 输入：妈妈让小明打酱油，否则就揍他。
