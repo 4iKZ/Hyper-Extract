@@ -16,7 +16,7 @@ def _examples():
 
 
 def test_prompt_has_examples():
-    assert len(_examples()) == 8
+    assert len(_examples()) == 12
 
 
 @pytest.mark.parametrize("query,expected", _examples())
