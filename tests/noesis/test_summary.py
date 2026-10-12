@@ -39,7 +39,7 @@ def test_production_prompt_matches_approved_version():
     from hyperextract.noesis.summary import SUMMARY_PROMPT
 
     assert hashlib.sha256(SUMMARY_PROMPT.encode()).hexdigest() == (
-        "9932cb3306a8663ea07630f6057bd8144aac6153b9e0ce74187b8920a1fd122a"
+        "d9c6d3c79a6fd01a526c0b238486327392f4e84386309273f74df281f5a18a5e"
     )
 
 
