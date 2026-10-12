@@ -22,6 +22,7 @@ from .models import (
     TreeArgument,
     ValidationResult,
 )
+from .query import create_noesis_query_rewriter, rewrite_noesis_query
 from .summary import create_noesis_summarizer, summarize_noesis_text
 from .validation import validate_components
 

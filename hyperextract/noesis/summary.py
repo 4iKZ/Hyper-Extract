@@ -74,10 +74,15 @@ Assistant: 熔断器可能处于 OPEN 超过 10 分钟，建议加一条告警�
 只输出 JSON，唯一字段为字符串 text：{"text":"……"}。"""
 
 
-def create_noesis_summarizer(*, llm_client: BaseChatModel) -> Callable[[str], str]:
-    """Use the approved prompt and validate the sole text field, never rewrite JSON."""
+def create_noesis_summarizer(
+    *, llm_client: BaseChatModel, prompt: str = SUMMARY_PROMPT
+) -> Callable[[str], str]:
+    """Use the approved prompt and validate the sole text field, never rewrite JSON.
+
+    ``prompt`` exists so the query-rewrite stage shares this exact call protocol.
+    """
     chain = ChatPromptTemplate.from_messages(
-        [SystemMessage(content=SUMMARY_PROMPT), ("human", "{source_text}")]
+        [SystemMessage(content=prompt), ("human", "{source_text}")]
     ) | llm_client.bind(
         # No response_format: the Aixapex json_object mode garbles the opening
         # ('{"{"text":...'); the prompt still demands JSON and json.loads stays strict.
