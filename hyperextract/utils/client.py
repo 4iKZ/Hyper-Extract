@@ -44,14 +44,14 @@ PROVIDER_PRESETS: dict[str, dict[str, str | None]] = {
         "default_llm": None,
         "default_embedder": None,
     },
-    # DeepSeek. OpenAI-compatible endpoint. Current models are deepseek-v4-flash
-    # and deepseek-v4-pro; both default to "thinking" mode, which rejects the
+    # DeepSeek. OpenAI-compatible endpoint. Current models are deepseek-flash
+    # (the old deepseek-v4-flash name is a retired alias) and deepseek-v4-pro; both default to "thinking" mode, which rejects the
     # tool_choice that method="function_calling" relies on, so create_llm()
     # disables thinking for this provider by default (override via extra_body).
     # DeepSeek has no embeddings API — pair it with an OpenAI-compatible embedder.
     "deepseek": {
         "base_url": "https://api.deepseek.com",
-        "default_llm": "deepseek-v4-flash",
+        "default_llm": "deepseek-flash",
         "default_embedder": None,
     },
     # Anthropic (Claude). Uses the native ChatAnthropic client, so base_url is

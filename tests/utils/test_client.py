@@ -102,7 +102,7 @@ class TestCreateLLM:
     def test_create_llm_deepseek(self):
         """Create LLM with deepseek preset (OpenAI-compatible)."""
         llm = create_llm("deepseek", api_key="sk-test")
-        assert llm.model_name == "deepseek-v4-flash"
+        assert llm.model_name == "deepseek-flash"
         assert llm.openai_api_base == "https://api.deepseek.com"
         # Thinking is auto-disabled so function_calling structured output works.
         assert llm.extra_body == {"thinking": {"type": "disabled"}}
@@ -488,7 +488,7 @@ class TestProviderPresets:
         assert "deepseek" in PROVIDER_PRESETS
         preset = PROVIDER_PRESETS["deepseek"]
         assert preset["base_url"] == "https://api.deepseek.com"
-        assert preset["default_llm"] == "deepseek-v4-flash"
+        assert preset["default_llm"] == "deepseek-flash"
         assert preset["default_embedder"] is None
 
     def test_all_presets_have_base_url_or_none(self):
