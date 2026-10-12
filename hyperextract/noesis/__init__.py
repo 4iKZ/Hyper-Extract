@@ -22,7 +22,7 @@ from .models import (
     TreeArgument,
     ValidationResult,
 )
-from .query import create_noesis_query_rewriter, rewrite_noesis_query
+from .query import create_noesis_query_extractor, extract_noesis_query_atoms
 from .summary import create_noesis_summarizer, summarize_noesis_text
 from .validation import validate_components
 
@@ -45,8 +45,10 @@ __all__ = [
     "collect_clause_critic_candidates",
     "create_clause_critic",
     "create_noesis_extractor",
+    "create_noesis_query_extractor",
     "create_noesis_summarizer",
     "extract_noesis_components",
+    "extract_noesis_query_atoms",
     "summarize_noesis_text",
     "validate_components",
 ]
