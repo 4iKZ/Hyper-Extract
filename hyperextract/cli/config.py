@@ -32,7 +32,7 @@ PROVIDER_PRESETS: dict[str, dict[str, str | None]] = {
     # DeepSeek: OpenAI-compatible, no embeddings API.
     "deepseek": {
         "base_url": "https://api.deepseek.com",
-        "default_llm": "deepseek-v4-flash",
+        "default_llm": "deepseek-flash",
         "default_embedder": None,
     },
     # Anthropic (Claude): native client, no base_url, no embeddings API.
