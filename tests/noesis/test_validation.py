@@ -3,6 +3,7 @@
 import copy
 
 import pytest
+from pydantic import ValidationError
 
 from hyperextract.noesis import validate_components
 
@@ -174,6 +175,16 @@ class TestClosureValidation:
 
         assert len(result.components) == 1
         assert result.alerts == []
+
+    def test_bare_single_component_is_accepted_as_one_element_array(self):
+        result = validate(baseline_fact())
+
+        assert len(result.components) == 1
+        assert result.alerts == []
+
+    def test_non_component_object_still_fails_schema(self):
+        with pytest.raises(ValidationError):
+            validate({"components": [baseline_fact()]})
 
     def test_multiple_predicates_single_root_passes(self):
         result = validate([causative_fact()])

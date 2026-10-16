@@ -639,6 +639,10 @@ def validate_components(raw: object, *, source_text: str) -> ValidationResult:
     drops. The source text is only used for containment checks and never
     leaks into alerts.
     """
+    # JSON-object mode (GLM, official DeepSeek) cannot return a root array, so a
+    # single closure may come back bare; it is the one-element array we asked for.
+    if isinstance(raw, dict) and "utterance_type" in raw:
+        raw = [raw]
     corrected_raw, repair_alerts, retry_needed = _pre_validate(raw)
     extraction = NoesisExtraction.model_validate(corrected_raw)
     normalized_source = _normalize_source_text(source_text)
