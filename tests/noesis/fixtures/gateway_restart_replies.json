@@ -1,0 +1,10 @@
+[
+ "{\"at{\"atoms\": [{\"text\": \"消息队列\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"堆积\", \"type\": \"P\", \"role\": \"predicate\"}]}",
+ "{\"atoms\":{\"atoms\": [{\"text\": \"MySQL\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"主从延迟\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"升高\", \"type\": \"P\", \"role\": \"predicate\"}]}",
+ "{\"at{\"atoms\": [{\"text\": \"Kafka 消费者组\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"lag\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"持续\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"增长\", \"type\": \"P\", \"role\": \"predicate\"}]}",
+ "{\"{\"atoms\": [{\"text\": \"MySQL\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"主从延迟\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"升高\", \"type\": \"P\", \"role\": \"predicate\"}]}",
+ "{\"at{\"atoms\": [{\"text\": \"磁盘\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"满\", \"type\": \"P\", \"role\": \"predicate\"}, {\"text\": \"写入失败\", \"type\": \"P\", \"role\": \"predicate\"}]}",
+ "{\"at{\"atoms\": [{\"text\": \"数据库\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"连接数\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"过高\", \"type\": \"P\", \"role\": \"predicate\"}, {\"text\": \"应用\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"响应\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"变慢\", \"type\": \"P\", \"role\": \"predicate\"}]}",
+ "{\"atoms\": [{\"text{ \"atoms\": [{\"text\": \"MySQL\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"主从延迟\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"升高\", \"type\": \"P\", \"role\": \"predicate\"}]}",
+ "{\"atoms\": [{\"text{ \"atoms\": [{\"text\": \"数据库\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"连接数\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"过高\", \"type\": \"P\", \"role\": \"predicate\"}, {\"text\": \"应用\", \"type\": \"E\", \"role\": \"modifier\"}, {\"text\": \"响应\", \"type\": \"E\", \"role\": \"agent\"}, {\"text\": \"变慢\", \"type\": \"P\", \"role\": \"predicate\"}]}"
+]

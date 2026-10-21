@@ -1,6 +1,5 @@
 """Noesis Stage 1 extractor: one retry around the LLM extraction call."""
 
-import json
 import os
 from collections.abc import Callable
 
@@ -9,6 +8,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 
+from ._llm_json import loads_llm_json
 from .critic import (
     ClauseCriticResult,
     build_clause_retry_feedback,
@@ -68,7 +68,7 @@ def create_noesis_extractor(
         content = response.text if isinstance(response, BaseMessage) else response
         if not isinstance(content, str):
             raise TypeError("Noesis LLM response content must be text")
-        return json.loads(content)
+        return loads_llm_json(content)
 
     # The fail-closed critic shares the exact same configured LLM client. It is only
     # activated by extract_noesis_components when the explicit experiment flag
