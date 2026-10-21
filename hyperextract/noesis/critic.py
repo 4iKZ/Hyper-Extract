@@ -16,6 +16,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, ConfigDict
 
+from ._llm_json import loads_llm_json
 from .models import FactComponent, HypothesisComponent
 
 
@@ -147,7 +148,7 @@ def create_clause_critic(
                     raise TypeError(
                         "Noesis clause critic response content must be text"
                     )
-                verdict = ClauseCriticVerdict.model_validate_json(content)
+                verdict = ClauseCriticVerdict.model_validate(loads_llm_json(content))
             except Exception:
                 decisions.append(
                     ClauseCriticDecision(

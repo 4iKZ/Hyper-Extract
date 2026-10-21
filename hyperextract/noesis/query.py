@@ -9,6 +9,7 @@ from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, ConfigDict, Field
 
+from ._llm_json import loads_llm_json
 from .query_prompt import QUERY_ATOMS_PROMPT
 
 
@@ -56,7 +57,7 @@ def create_noesis_query_extractor(
             content = response
         if not isinstance(content, str):
             raise TypeError("Noesis query response content must be text")
-        return json.loads(content)
+        return loads_llm_json(content)
 
     return extract_once
 

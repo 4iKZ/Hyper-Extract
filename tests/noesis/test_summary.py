@@ -131,3 +131,12 @@ def test_he_json_mode_does_not_require_server_json_schema():
     assert client.messages[0][0].content == NOESIS_CANONICAL_PROMPT.format(
         source_text="整理文本", retry_feedback="无。"
     )
+
+
+def test_gateway_restart_stub_is_repaired_without_a_second_call():
+    from hyperextract.noesis import create_noesis_summarizer, summarize_noesis_text
+
+    client = SummaryLLM(response='{"te{"text": "磁盘满导致写入失败。"}')
+    once = create_noesis_summarizer(llm_client=client)
+    assert summarize_noesis_text("原始对话", summarize_once=once) == "磁盘满导致写入失败。"
+    assert len(client.messages) == 1

@@ -110,3 +110,13 @@ def test_call_failure_retries_once_then_succeeds():
         {"text": "连接池", "type": "E", "role": "patient"}
     ]
     assert len(calls) == 2
+
+
+def test_gateway_restart_stub_is_repaired_without_a_second_call():
+    from hyperextract.noesis import create_noesis_query_extractor, extract_noesis_query_atoms
+
+    client = SummaryLLM(response='{"at{"atoms": [{"text": "堆积", "type": "P", "role": "predicate"}]}')
+    once = create_noesis_query_extractor(llm_client=client)
+    atoms = extract_noesis_query_atoms("消息队列堆积", extract_once=once)
+    assert atoms == [{"text": "堆积", "type": "P", "role": "predicate"}]
+    assert len(client.messages) == 1

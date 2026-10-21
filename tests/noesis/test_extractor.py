@@ -210,6 +210,17 @@ class TestProductionJSONSchemaAdapter:
         assert len(outcome.components) == 1
         assert outcome.alerts == []
 
+    def test_gateway_restart_stub_is_repaired_without_a_second_call(self):
+        full = json.dumps([valid_fact()], ensure_ascii=False)
+        llm = RecordingJSONSchemaChatModel(responses=[full[:5] + full])
+        extract_once = create_noesis_extractor(llm_client=llm)
+
+        outcome = extract_noesis_components(SOURCE_TEXT, extract_once=extract_once)
+
+        assert len(llm.calls) == 1
+        assert outcome.attempts == 1
+        assert len(outcome.components) == 1
+
     def test_json_object_does_not_get_unwrapped(self):
         llm = RecordingJSONSchemaChatModel(
             responses=[json.dumps({"components": [valid_fact()]}, ensure_ascii=False)]
